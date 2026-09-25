@@ -39,7 +39,7 @@ const base = 'http://localhost:5173/';
     }
 
     await page.goto(`${base}#library`);
-    assert.match(await page.locator('.library-results-head strong').innerText(), /252 ท่า/, 'library has complete exercise catalogue');
+    assert.match(await page.locator('.library-results-head strong').innerText(), /1,379 ท่า/, 'library has complete exercise catalogue');
     await page.goto(`${base}#nutrition`);
     assert.ok(await page.locator('.food-row').count() >= 60, 'nutrition has expanded food library');
     await page.goto(`${base}#equipment/dumbbell`);

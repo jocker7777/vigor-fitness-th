@@ -1,5 +1,6 @@
 import { equipmentCatalog, equipmentExercises, renderEquipment } from './equipment-catalog.js';
 import { libraryExercises, libraryTypeMeta, libraryMuscleOrder } from './exercise-library.js';
+import { fastfitExercises } from './fastfit-adapter.js';
 const gymView={slug:'',search:'',muscle:'ทั้งหมด',level:'ทั้งหมด',picked:[]};
 const exercises=[
  ['Squat','สควอต','ขาและสะโพก','ไม่ใช้อุปกรณ์','เริ่มต้น','S','🏋️',45,'ยืนกว้างเท่าหัวไหล่ ย่อตัวโดยดันสะโพกไปหลัง รักษาหลังตรง แล้วดันพื้นกลับขึ้น'],
@@ -178,7 +179,7 @@ render=function(){
   const isEquipment=page==='equipment'||page.startsWith('equipment/');
   const slug=page.startsWith('equipment/')?page.slice(10):'';
   if(isEquipment&&gymView.slug!==slug)Object.assign(gymView,{slug,search:'',muscle:'ทั้งหมด',level:'ทั้งหมด',picked:[]});
-  const content=isEquipment?renderEquipment({esc,exercises,owned:state.equipment,...gymView},slug):(pages[page]||home)();
+  const content=isEquipment?renderEquipment({esc,exercises:exercises.filter(exercise=>!exercise.sourceId),owned:state.equipment,...gymView},slug):(pages[page]||home)();
   $('#app').innerHTML=layout(content);
   document.querySelector('.mobile-nav')?.insertAdjacentHTML('beforeend',`<button data-go="equipment" class="${isEquipment?'active':''}"><span>◈</span>โฮมยิม</button>`);
   if(page==='library'&&window.equipmentFilter){document.querySelectorAll('.exercise').forEach(el=>{let e=exercises.find(x=>x.id===Number(el.dataset.exercise));if(window.equipmentFilter!=='ทั้งหมด'&&e.equipment!==window.equipmentFilter)el.style.display='none'})}
@@ -316,10 +317,11 @@ document.addEventListener('change',event=>{
 render();
 
 // Full exercise library: training styles, detailed muscles, tiers, sorting and views.
+exercises.push(...fastfitExercises);
 let libraryView={type:'ทั้งหมด',muscle:'ทั้งหมด',tier:'ทั้งหมด',equipment:'ทั้งหมด',level:'ทั้งหมด',sort:'ยอดนิยม',mode:'cards',owned:false,limit:36};
 const tierRank={S:5,A:4,B:3,C:2,D:1};
-const levelRank={'เริ่มต้น':1,'ปานกลาง':2,'ขั้นสูง':3};
-const levelDots=level=>Array.from({length:3},(_,index)=>`<i class="${index<(levelRank[level]||1)?'on':''}"></i>`).join('');
+const levelRank={'เริ่มต้น':1,'พื้นฐาน':2,'ปานกลาง':3,'ขั้นสูง':4,'เชี่ยวชาญ':5};
+const levelDots=level=>Array.from({length:5},(_,index)=>`<i class="${index<(levelRank[level]||1)?'on':''}"></i>`).join('');
 const resetLibraryLimit=()=>{libraryView.limit=36};
 function libraryCard(exercise){
  const favorite=(state.favorites||[]).includes(exercise.id);
@@ -331,8 +333,9 @@ function libraryListRow(exercise){
 }
 library=function(){
  const search=query.trim().toLocaleLowerCase('th');
- const equipmentOptions=['ทั้งหมด',...new Set(exercises.map(exercise=>exercise.equipment))];
- let results=exercises.filter(exercise=>
+ const catalogue=fastfitExercises;
+ const equipmentOptions=['ทั้งหมด',...new Set(catalogue.map(exercise=>exercise.equipment))];
+ let results=catalogue.filter(exercise=>
   (libraryView.type==='ทั้งหมด'||exercise.type===libraryView.type)&&
   (libraryView.muscle==='ทั้งหมด'||exercise.primaryMuscle===libraryView.muscle)&&
   (libraryView.tier==='ทั้งหมด'||exercise.tier===libraryView.tier)&&
@@ -347,9 +350,9 @@ library=function(){
  else if(libraryView.sort==='เพิ่มล่าสุด')results.sort((a,b)=>b.id-a.id);
  else results.sort((a,b)=>b.popularity-a.popularity);
  const shown=results.slice(0,libraryView.limit);
- const types=libraryTypeMeta.map(([type,icon])=>({type,icon,count:type==='ทั้งหมด'?exercises.length:exercises.filter(exercise=>exercise.type===type).length}));
- const muscles=libraryMuscleOrder.map(muscle=>({muscle,count:muscle==='ทั้งหมด'?exercises.length:exercises.filter(exercise=>exercise.primaryMuscle===muscle).length})).filter(item=>item.count>0);
- return `${header('EXERCISE LIBRARY','คลังท่า','รวมท่าเวท โยคะ แอโรบิก คาร์ดิโอ และยืดเหยียด พร้อมวิธีฝึกและตัวกรองละเอียด')}<section class="library-type-grid">${types.map(item=>`<button class="library-type ${libraryView.type===item.type?'active':''}" data-library-type="${esc(item.type)}"><span>${item.icon}</span><div><strong>${esc(item.type)}</strong><small>${item.count.toLocaleString('th-TH')} ท่า</small></div></button>`).join('')}</section><section class="library-controls"><div class="library-search-row"><label class="library-search"><span>⌕</span><input id="search" type="search" placeholder="ค้นหาท่า กล้ามเนื้อ หรืออุปกรณ์..." value="${esc(query)}"></label><label class="library-equipment"><span>อุปกรณ์</span><select id="library-equipment">${equipmentOptions.map(value=>`<option ${libraryView.equipment===value?'selected':''}>${esc(value)}</option>`).join('')}</select></label><button class="owned-toggle ${libraryView.owned?'active':''}" data-library-owned aria-pressed="${libraryView.owned}"><span>${libraryView.owned?'✓':'○'}</span> อุปกรณ์ของฉัน</button></div><div class="library-muscles" aria-label="กรองตามกล้ามเนื้อ">${muscles.map(item=>`<button class="chip ${libraryView.muscle===item.muscle?'active':''}" data-library-muscle="${esc(item.muscle)}">${esc(item.muscle)} <span>${item.count}</span></button>`).join('')}</div><div class="library-filter-row"><div class="library-tier-filter"><strong>Tier</strong>${['ทั้งหมด','S','A','B','C','D'].map(value=>`<button class="tier-filter ${libraryView.tier===value?'active':''} ${value!=='ทั้งหมด'?`tier-${value}`:''}" data-library-tier="${value}">${value==='ทั้งหมด'?'ทุกระดับ':value}</button>`).join('')}</div><label>ความยาก<select id="library-level">${['ทั้งหมด','เริ่มต้น','ปานกลาง','ขั้นสูง'].map(value=>`<option ${libraryView.level===value?'selected':''}>${value}</option>`).join('')}</select></label><details class="tier-help"><summary>Tier คืออะไร?</summary><div><b>S</b> ตัวเลือกเด่น · <b>A</b> ดีมาก · <b>B</b> ดี · <b>C</b> ทางเลือก · <b>D</b> เสริม<br><small>Tier เปรียบเทียบความคุ้มค่าของท่าในกลุ่มเดียวกัน ไม่ใช่ระดับความยาก</small></div></details></div></section><section class="library-results"><div class="library-results-head"><div><strong>พบ ${results.length.toLocaleString('th-TH')} ท่า</strong><span>${libraryView.type==='ทั้งหมด'?'ทุกประเภท':esc(libraryView.type)}${libraryView.muscle!=='ทั้งหมด'?` · ${esc(libraryView.muscle)}`:''}</span></div><div class="library-view-tools"><select id="library-sort">${['ยอดนิยม','Tier สูงสุด','ง่ายก่อน','ชื่อ ก–ฮ','เพิ่มล่าสุด'].map(value=>`<option ${libraryView.sort===value?'selected':''}>${value}</option>`).join('')}</select><div class="view-switch"><button data-library-mode="cards" class="${libraryView.mode==='cards'?'active':''}" aria-label="มุมมองการ์ด">▦ การ์ด</button><button data-library-mode="list" class="${libraryView.mode==='list'?'active':''}" aria-label="มุมมองรายการ">☷ รายการ</button></div></div></div>${shown.length?libraryView.mode==='cards'?`<div class="library-exercise-grid">${shown.map(libraryCard).join('')}</div>`:`<div class="library-list">${shown.map(libraryListRow).join('')}</div>`:`<div class="empty library-empty"><strong>ไม่พบท่าที่ตรงกับตัวกรอง</strong><p>ลองลบคำค้น หรือเปลี่ยนกล้ามเนื้อ อุปกรณ์ และ Tier</p><button class="btn" data-library-clear>ล้างตัวกรอง</button></div>`}${results.length>shown.length?`<div class="library-load"><button class="btn secondary" data-library-more>โหลดเพิ่มอีก ${Math.min(36,results.length-shown.length)} ท่า</button><small>แสดง ${shown.length} จาก ${results.length} ท่า</small></div>`:''}</section>`;
+ const types=libraryTypeMeta.map(([type,icon])=>({type,icon,count:type==='ทั้งหมด'?catalogue.length:catalogue.filter(exercise=>exercise.type===type).length}));
+ const muscles=libraryMuscleOrder.map(muscle=>({muscle,count:muscle==='ทั้งหมด'?catalogue.length:catalogue.filter(exercise=>exercise.primaryMuscle===muscle).length})).filter(item=>item.count>0);
+ return `${header('EXERCISE LIBRARY','คลังท่า','รวมท่าเวท โยคะ แอโรบิก คาร์ดิโอ และยืดเหยียด พร้อมวิธีฝึกและตัวกรองละเอียด')}<section class="library-type-grid">${types.map(item=>`<button class="library-type ${libraryView.type===item.type?'active':''}" data-library-type="${esc(item.type)}"><span>${item.icon}</span><div><strong>${esc(item.type)}</strong><small>${item.count.toLocaleString('th-TH')} ท่า</small></div></button>`).join('')}</section><section class="library-controls"><div class="library-search-row"><label class="library-search"><span>⌕</span><input id="search" type="search" placeholder="ค้นหาท่า กล้ามเนื้อ หรืออุปกรณ์..." value="${esc(query)}"></label><label class="library-equipment"><span>อุปกรณ์</span><select id="library-equipment">${equipmentOptions.map(value=>`<option ${libraryView.equipment===value?'selected':''}>${esc(value)}</option>`).join('')}</select></label><button class="owned-toggle ${libraryView.owned?'active':''}" data-library-owned aria-pressed="${libraryView.owned}"><span>${libraryView.owned?'✓':'○'}</span> อุปกรณ์ของฉัน</button></div><div class="library-muscles" aria-label="กรองตามกล้ามเนื้อ">${muscles.map(item=>`<button class="chip ${libraryView.muscle===item.muscle?'active':''}" data-library-muscle="${esc(item.muscle)}">${esc(item.muscle)} <span>${item.count}</span></button>`).join('')}</div><div class="library-filter-row"><div class="library-tier-filter"><strong>Tier</strong>${['ทั้งหมด','S','A','B','C','D'].map(value=>`<button class="tier-filter ${libraryView.tier===value?'active':''} ${value!=='ทั้งหมด'?`tier-${value}`:''}" data-library-tier="${value}">${value==='ทั้งหมด'?'ทุกระดับ':value}</button>`).join('')}</div><label>ความยาก<select id="library-level">${['ทั้งหมด','เริ่มต้น','พื้นฐาน','ปานกลาง','ขั้นสูง','เชี่ยวชาญ'].map(value=>`<option ${libraryView.level===value?'selected':''}>${value}</option>`).join('')}</select></label><details class="tier-help"><summary>Tier คืออะไร?</summary><div><b>S</b> ตัวเลือกเด่น · <b>A</b> ดีมาก · <b>B</b> ดี · <b>C</b> ทางเลือก · <b>D</b> เสริม<br><small>Tier เปรียบเทียบความคุ้มค่าของท่าในกลุ่มเดียวกัน ไม่ใช่ระดับความยาก</small></div></details></div></section><section class="library-results"><div class="library-results-head"><div><strong>พบ ${results.length.toLocaleString('th-TH')} ท่า</strong><span>${libraryView.type==='ทั้งหมด'?'ทุกประเภท':esc(libraryView.type)}${libraryView.muscle!=='ทั้งหมด'?` · ${esc(libraryView.muscle)}`:''}</span></div><div class="library-view-tools"><select id="library-sort">${['ยอดนิยม','Tier สูงสุด','ง่ายก่อน','ชื่อ ก–ฮ','เพิ่มล่าสุด'].map(value=>`<option ${libraryView.sort===value?'selected':''}>${value}</option>`).join('')}</select><div class="view-switch"><button data-library-mode="cards" class="${libraryView.mode==='cards'?'active':''}" aria-label="มุมมองการ์ด">▦ การ์ด</button><button data-library-mode="list" class="${libraryView.mode==='list'?'active':''}" aria-label="มุมมองรายการ">☷ รายการ</button></div></div></div>${shown.length?libraryView.mode==='cards'?`<div class="library-exercise-grid">${shown.map(libraryCard).join('')}</div>`:`<div class="library-list">${shown.map(libraryListRow).join('')}</div>`:`<div class="empty library-empty"><strong>ไม่พบท่าที่ตรงกับตัวกรอง</strong><p>ลองลบคำค้น หรือเปลี่ยนกล้ามเนื้อ อุปกรณ์ และ Tier</p><button class="btn" data-library-clear>ล้างตัวกรอง</button></div>`}${results.length>shown.length?`<div class="library-load"><button class="btn secondary" data-library-more>โหลดเพิ่มอีก ${Math.min(36,results.length-shown.length)} ท่า</button><small>แสดง ${shown.length} จาก ${results.length} ท่า</small></div>`:''}</section>`;
 };
 document.addEventListener('click',event=>{
  const target=event.target.closest('[data-library-type],[data-library-muscle],[data-library-tier],[data-library-mode],[data-library-owned],[data-library-more],[data-library-clear]');
@@ -368,4 +371,12 @@ document.addEventListener('change',event=>{
  else if(event.target.id==='library-level'){libraryView.level=event.target.value;resetLibraryLimit();render();}
  else if(event.target.id==='library-sort'){libraryView.sort=event.target.value;render();}
 });
+const originalModalHTML=modalHTML;
+modalHTML=function(){
+ if(modal?.type!=='exercise')return originalModalHTML();
+ const exercise=exercises.find(item=>item.id===modal.id);
+ if(!exercise?.sourceId)return originalModalHTML();
+ const target=exercise.reps?`${exercise.reps} ครั้ง`:exercise.time?`${exercise.time} วินาที`:`${exercise.seconds} วินาที`;
+ return `<div class="modal-backdrop" data-close><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(exercise.name)}"><button class="close" data-close aria-label="ปิด">×</button><div class="exercise-visual" style="height:150px"><span style="font-size:68px">${exercise.emoji}</span></div><div class="eyebrow" style="margin-top:16px">${esc(exercise.type)} · ${esc(exercise.primaryMuscle)}</div><h2>${esc(exercise.name)}</h2><p>${esc(exercise.en)} · ${esc(exercise.equipment)} · ${esc(exercise.level)} · Tier ${esc(exercise.tier)}</p><div class="library-detail-stats"><div><strong>${exercise.sets||1}</strong><span>เซ็ต</span></div><div><strong>${esc(target)}</strong><span>ต่อเซ็ต</span></div><div><strong>${exercise.rest||0} วิ</strong><span>พัก</span></div></div><h3>คำแนะนำเบื้องต้น</h3><p>${esc(exercise.instructions)}</p><p class="hint">ชื่อและข้อมูลจัดหมวดจาก FastFit · คำแนะนำนี้เป็นแนวทางทั่วไป</p><div class="library-detail-actions"><a class="btn secondary" href="https://fastfit.buildbytoey.com/exercise/${encodeURIComponent(exercise.sourceSlug)}" target="_blank" rel="noopener noreferrer">ดูวิธีฝึกต้นทาง ↗</a><button class="btn" data-close>ปิด</button></div></div></div>`;
+};
 render();

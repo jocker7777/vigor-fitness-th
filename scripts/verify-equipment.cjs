@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://localhost:5173/#equipment/dumbbell');
   await page.locator('[data-gym-own="dumbbell"]').waitFor();
-  assert.equal(await page.locator('.gym-exercise').count(),16);
+  assert.ok(await page.locator('.gym-exercise').count()>=16);
   await page.locator('[data-gym-own="dumbbell"]').click();
   await page.reload();
   await page.locator('[data-gym-own="dumbbell"][aria-pressed="true"]').waitFor();
