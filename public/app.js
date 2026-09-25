@@ -179,7 +179,7 @@ render=function(){
   const isEquipment=page==='equipment'||page.startsWith('equipment/');
   const slug=page.startsWith('equipment/')?page.slice(10):'';
   if(isEquipment&&gymView.slug!==slug)Object.assign(gymView,{slug,search:'',muscle:'ทั้งหมด',level:'ทั้งหมด',picked:[]});
-  const content=isEquipment?renderEquipment({esc,exercises:exercises.filter(exercise=>!exercise.sourceId),owned:state.equipment,...gymView},slug):(pages[page]||home)();
+  const content=isEquipment?renderEquipment({esc,exercises,owned:state.equipment,...gymView},slug):(pages[page]||home)();
   $('#app').innerHTML=layout(content);
   document.querySelector('.mobile-nav')?.insertAdjacentHTML('beforeend',`<button data-go="equipment" class="${isEquipment?'active':''}"><span>◈</span>โฮมยิม</button>`);
   if(page==='library'&&window.equipmentFilter){document.querySelectorAll('.exercise').forEach(el=>{let e=exercises.find(x=>x.id===Number(el.dataset.exercise));if(window.equipmentFilter!=='ทั้งหมด'&&e.equipment!==window.equipmentFilter)el.style.display='none'})}
@@ -296,7 +296,7 @@ document.addEventListener('click',event=>{
   }else if(target.dataset.gymMuscle){gymView.muscle=target.dataset.gymMuscle;render();$('#gym-exercises')?.scrollIntoView({behavior:'smooth'});}
   else if(target.dataset.gymBuild){
     const item=equipmentCatalog.find(x=>x.slug===target.dataset.gymBuild);if(!item)return;
-    const ids=gymView.picked.filter(id=>exercises.some(x=>x.id===id&&x.equipment===item.name));
+    const ids=gymView.picked.filter(id=>exercises.some(x=>x.id===id&&(item.code==='mat'?x.equipment===item.name:x.equipmentCodes?.includes(item.code))));
     if(!ids.length)return;
     const seconds=ids.reduce((n,id)=>n+exercises.find(x=>x.id===id).seconds,0)+Math.max(0,ids.length-1)*Number(state.rest);
     const plan={id:'custom-'+crypto.randomUUID(),name:`ชุดฝึก${item.name}`,goal:'ฟิตทั่วไป',level:'เริ่มต้น',minutes:Math.ceil(seconds/60),description:`${ids.length} ท่า · ฝึก 1 รอบ · พัก ${state.rest} วินาทีระหว่างท่า`,exerciseIds:ids};

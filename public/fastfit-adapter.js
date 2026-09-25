@@ -36,6 +36,7 @@ export const fastfitExercises = fastfitCatalog.map((record,index) => {
     id:10000+record.id,sourceId:record.id,sourceSlug:record.slug,
     name:record.name,en:record.en,primaryMuscle:muscles[record.m]||record.m,
     muscle:muscles[record.m]||record.m,equipment:equipment[record.e]||record.e,
+    equipmentCodes:[record.e,...(record.a?.x||[])],
     level:levels[record.lv]||'เริ่มต้น',tier:record.tr,type,emoji:icons[type]||'🏋️',
     seconds:Math.max(20,Math.min(180,Number(record.time)||45)),
     instructions:genericAdvice[type],
