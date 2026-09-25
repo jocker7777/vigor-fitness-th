@@ -2,6 +2,7 @@ import { equipmentCatalog, equipmentExercises, renderEquipment } from './equipme
 import { libraryExercises, libraryTypeMeta, libraryMuscleOrder } from './exercise-library.js';
 import { fastfitExercises } from './fastfit-adapter.js';
 import { foods, renderFoodLibrary } from './food-library.js';
+import { anatomyView, anatomyGroups, renderAnatomy } from './anatomy-map.js';
 const gymView={slug:'',search:'',muscle:'ทั้งหมด',level:'ทั้งหมด',picked:[]};
 const exercises=[
  ['Squat','สควอต','ขาและสะโพก','ไม่ใช้อุปกรณ์','เริ่มต้น','S','🏋️',45,'ยืนกว้างเท่าหัวไหล่ ย่อตัวโดยดันสะโพกไปหลัง รักษาหลังตรง แล้วดันพื้นกลับขึ้น'],
@@ -155,8 +156,7 @@ home=function(){
   return `${header('READY TO TRAIN','วันนี้อยากฝึกอะไร?','เลือกเป้าหมาย อุปกรณ์ และเวลาที่มี แล้วเริ่มโปรแกรมที่เหมาะกับคุณได้ทันที')}<section class="panel ready-panel">${pick('เป้าหมาย',['ทั้งหมด','ลดไขมัน','เพิ่มกล้ามเนื้อ','ความแข็งแรง','ฟื้นฟู'],ready.goal)}${pick('อุปกรณ์',['ทั้งหมด','ไม่ใช้อุปกรณ์','อุปกรณ์ของฉัน'],ready.equipment)}${pick('เวลา',[0,20,40,60],Number(ready.minutes)||0)}</section><section class="section"><div class="section-head"><div><h2>โปรแกรมพร้อมเริ่ม</h2><p>${plans.length?'กดดูรายละเอียดหรือเริ่มฝึกได้ทันที':'ยังไม่มีโปรแกรมที่ตรงกับตัวเลือก ลองปรับตัวกรองหรือให้ Smart Builder ช่วย'}</p></div><button class="btn small secondary" data-go="smart">ให้ Smart Builder จัดให้</button></div><div class="grid program-grid">${plans.length?plans.map(programCard).join(''):'<div class="empty">ไม่พบโปรแกรมที่ตรงกับตัวเลือก</div>'}</div></section><section class="section quick-links"><button class="panel link-panel" data-go="muscle"><span>◒</span><div><strong>เลือกจากกล้ามเนื้อ</strong><small>แตะส่วนที่อยากฝึกเพื่อดูท่า</small></div></button><button class="panel link-panel" data-go="equipment"><span>◈</span><div><strong>ยิมที่บ้าน</strong><small>ตั้งค่าอุปกรณ์ของคุณ</small></div></button><button class="panel link-panel" data-go="sets"><span>▤</span><div><strong>ชุดของฉัน</strong><small>บันทึกและเริ่มโปรแกรมส่วนตัว</small></div></button></section>`;
 };
 function muscle(){
-  const groups=[['อกและแขน','💪','วิดพื้นและท่าดัน'],['หลัง','↩','ดึงและโรว์'],['ไหล่และแขน','◎','ไหล่และแขน'],['แกนกลาง','◉','หน้าท้องและลำตัว'],['ขาและสะโพก','◒','ขา ก้น และการทรงตัว'],['คาร์ดิโอ','⚡','เพิ่มชีพจร'],['ยืดเหยียด','↔','คลายความตึง']];
-  return `${header('MUSCLE MAP','เลือกกล้ามเนื้อที่อยากฝึก','แตะกลุ่มกล้ามเนื้อเพื่อเปิดคลังท่าที่เกี่ยวข้อง')}<div class="muscle-map panel"><div class="body-silhouette" aria-hidden="true"><span class="body-head"></span><span class="body-chest"></span><span class="body-core"></span><span class="body-leg left"></span><span class="body-leg right"></span></div><div class="muscle-grid">${groups.map(([name,icon,copy])=>`<button class="muscle-card" data-muscle="${esc(name)}"><span>${icon}</span><strong>${name}</strong><small>${copy}</small></button>`).join('')}</div></div><p class="hint">แผนที่นี้เป็นตัวเลือกกล้ามเนื้อสำหรับค้นหาท่า ไม่ใช่คำแนะนำทางการแพทย์</p>`;
+  return renderAnatomy(esc,anatomyView);
 }
 function sets(){
   const plans=[...state.plans];
@@ -318,7 +318,7 @@ render();
 
 // Full exercise library: training styles, detailed muscles, tiers, sorting and views.
 exercises.push(...fastfitExercises);
-let libraryView={type:'ทั้งหมด',muscle:'ทั้งหมด',tier:'ทั้งหมด',equipment:'ทั้งหมด',level:'ทั้งหมด',sort:'ยอดนิยม',mode:'cards',owned:false,limit:36};
+let libraryView={type:'ทั้งหมด',muscle:'ทั้งหมด',muscles:[],tier:'ทั้งหมด',equipment:'ทั้งหมด',level:'ทั้งหมด',sort:'ยอดนิยม',mode:'cards',owned:false,limit:36};
 const tierRank={S:5,A:4,B:3,C:2,D:1};
 const levelRank={'เริ่มต้น':1,'พื้นฐาน':2,'ปานกลาง':3,'ขั้นสูง':4,'เชี่ยวชาญ':5};
 const levelDots=level=>Array.from({length:5},(_,index)=>`<i class="${index<(levelRank[level]||1)?'on':''}"></i>`).join('');
@@ -337,7 +337,7 @@ library=function(){
  const equipmentOptions=['ทั้งหมด',...new Set(catalogue.map(exercise=>exercise.equipment))];
  let results=catalogue.filter(exercise=>
   (libraryView.type==='ทั้งหมด'||exercise.type===libraryView.type)&&
-  (libraryView.muscle==='ทั้งหมด'||exercise.primaryMuscle===libraryView.muscle)&&
+  (libraryView.muscles?.length?libraryView.muscles.includes(exercise.primaryMuscle):(libraryView.muscle==='ทั้งหมด'||exercise.primaryMuscle===libraryView.muscle))&&
   (libraryView.tier==='ทั้งหมด'||exercise.tier===libraryView.tier)&&
   (libraryView.equipment==='ทั้งหมด'||exercise.equipment===libraryView.equipment)&&
   (libraryView.level==='ทั้งหมด'||exercise.level===libraryView.level)&&
@@ -358,18 +358,39 @@ document.addEventListener('click',event=>{
  const target=event.target.closest('[data-library-type],[data-library-muscle],[data-library-tier],[data-library-mode],[data-library-owned],[data-library-more],[data-library-clear]');
  if(!target)return;
  if(target.dataset.libraryType!==undefined){libraryView.type=target.dataset.libraryType;resetLibraryLimit();}
- else if(target.dataset.libraryMuscle!==undefined){libraryView.muscle=target.dataset.libraryMuscle;resetLibraryLimit();}
+ else if(target.dataset.libraryMuscle!==undefined){libraryView.muscle=target.dataset.libraryMuscle;libraryView.muscles=[];resetLibraryLimit();}
  else if(target.dataset.libraryTier!==undefined){libraryView.tier=target.dataset.libraryTier;resetLibraryLimit();}
  else if(target.dataset.libraryMode!==undefined){libraryView.mode=target.dataset.libraryMode;}
  else if(target.hasAttribute('data-library-owned')){libraryView.owned=!libraryView.owned;resetLibraryLimit();}
  else if(target.hasAttribute('data-library-more')){libraryView.limit+=36;}
- else if(target.hasAttribute('data-library-clear')){libraryView={type:'ทั้งหมด',muscle:'ทั้งหมด',tier:'ทั้งหมด',equipment:'ทั้งหมด',level:'ทั้งหมด',sort:'ยอดนิยม',mode:libraryView.mode,owned:false,limit:36};query='';}
+ else if(target.hasAttribute('data-library-clear')){libraryView={type:'ทั้งหมด',muscle:'ทั้งหมด',muscles:[],tier:'ทั้งหมด',equipment:'ทั้งหมด',level:'ทั้งหมด',sort:'ยอดนิยม',mode:libraryView.mode,owned:false,limit:36};query='';}
  render();
 });
 document.addEventListener('change',event=>{
  if(event.target.id==='library-equipment'){libraryView.equipment=event.target.value;resetLibraryLimit();render();}
  else if(event.target.id==='library-level'){libraryView.level=event.target.value;resetLibraryLimit();render();}
  else if(event.target.id==='library-sort'){libraryView.sort=event.target.value;render();}
+});
+document.addEventListener('click',event=>{
+ const target=event.target.closest('[data-anatomy-muscle],[data-anatomy-view],[data-anatomy-gender],[data-anatomy-multi],[data-anatomy-clear],[data-anatomy-library]');
+ if(!target)return;
+ if(target.dataset.anatomyMuscle){
+  const code=target.dataset.anatomyMuscle;
+  if(!anatomyGroups.some(group=>group.code===code))return;
+  anatomyView.selected=anatomyView.multi?(anatomyView.selected.includes(code)?anatomyView.selected.filter(item=>item!==code):[...anatomyView.selected,code]):[code];
+  render();document.querySelector(`.anatomy-group-card[data-anatomy-muscle="${code}"]`)?.focus();
+ }else if(target.dataset.anatomyView){anatomyView.view=target.dataset.anatomyView;render();}
+ else if(target.dataset.anatomyGender){anatomyView.gender=target.dataset.anatomyGender;render();}
+ else if(target.hasAttribute('data-anatomy-multi')){anatomyView.multi=!anatomyView.multi;if(!anatomyView.multi)anatomyView.selected=anatomyView.selected.slice(-1);render();}
+ else if(target.hasAttribute('data-anatomy-clear')){anatomyView.selected=[];render();}
+ else if(target.hasAttribute('data-anatomy-library')){
+  libraryView.muscles=anatomyGroups.filter(group=>anatomyView.selected.includes(group.code)).map(group=>group.libraryName);
+  libraryView.muscle='ทั้งหมด';resetLibraryLimit();go('library');
+ }
+});
+document.addEventListener('keydown',event=>{
+ if(!event.target.matches('svg [data-anatomy-muscle]')||!['Enter',' '].includes(event.key))return;
+ event.preventDefault();event.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));
 });
 const originalModalHTML=modalHTML;
 modalHTML=function(){

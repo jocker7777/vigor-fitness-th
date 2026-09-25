@@ -18,7 +18,7 @@ const base = 'http://localhost:5173/';
 
     const checks = [
       ['home', '.ready-panel', '.program'],
-      ['muscle', '.muscle-card', '.muscle-card'],
+      ['muscle', '.anatomy-group-card', '.anatomy-group-card'],
       ['library', '.library-type-grid', '.library-card'],
       ['equipment', '.gym-card', '.gym-card'],
       ['sets', '.set-steps', '.program'],
