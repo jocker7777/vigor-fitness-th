@@ -32,6 +32,16 @@ export async function PUT(request: Request) {
     goal: typeof data.goal === 'number' && data.goal >= 500 && data.goal <= 6000 ? data.goal : 1900,
     voice: data.voice === true,
     rest: typeof data.rest === 'number' && data.rest >= 0 && data.rest <= 300 ? data.rest : 20,
+    profile: {
+      displayName: typeof (data.profile as Record<string, unknown> | undefined)?.displayName === 'string'
+        ? (data.profile as Record<string, unknown>).displayName.slice(0, 50) : '',
+      fitnessGoal: ['ฟิตทั่วไป', 'ลดไขมัน', 'เพิ่มกล้ามเนื้อ', 'ความแข็งแรง', 'ฟื้นฟู'].includes(String((data.profile as Record<string, unknown> | undefined)?.fitnessGoal))
+        ? (data.profile as Record<string, unknown>).fitnessGoal : 'ฟิตทั่วไป',
+      level: ['เริ่มต้น', 'ปานกลาง', 'ขั้นสูง'].includes(String((data.profile as Record<string, unknown> | undefined)?.level))
+        ? (data.profile as Record<string, unknown>).level : 'เริ่มต้น',
+      weeklyTarget: [2, 3, 4, 5, 6, 7].includes(Number((data.profile as Record<string, unknown> | undefined)?.weeklyTarget))
+        ? Number((data.profile as Record<string, unknown>).weeklyTarget) : 3,
+    },
   };
   try {
     await saveUserState(user.userId, state);
