@@ -19,7 +19,7 @@ const base = 'http://localhost:5173/';
     const checks = [
       ['home', '.ready-panel', '.program'],
       ['muscle', '.muscle-card', '.muscle-card'],
-      ['library', '.library-summary', '.exercise'],
+      ['library', '.library-type-grid', '.library-card'],
       ['equipment', '.gym-card', '.gym-card'],
       ['sets', '.set-steps', '.program'],
       ['programs', '.program-overview', '.program'],
@@ -39,7 +39,7 @@ const base = 'http://localhost:5173/';
     }
 
     await page.goto(`${base}#library`);
-    assert.ok(await page.locator('.exercise').count() >= 40, 'library has starter exercises');
+    assert.match(await page.locator('.library-results-head strong').innerText(), /252 ท่า/, 'library has complete exercise catalogue');
     await page.goto(`${base}#nutrition`);
     assert.ok(await page.locator('.food-row').count() >= 60, 'nutrition has expanded food library');
     await page.goto(`${base}#equipment/dumbbell`);

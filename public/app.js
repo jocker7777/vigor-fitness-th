@@ -1,4 +1,5 @@
 import { equipmentCatalog, equipmentExercises, renderEquipment } from './equipment-catalog.js';
+import { libraryExercises, libraryTypeMeta, libraryMuscleOrder } from './exercise-library.js';
 const gymView={slug:'',search:'',muscle:'ทั้งหมด',level:'ทั้งหมด',picked:[]};
 const exercises=[
  ['Squat','สควอต','ขาและสะโพก','ไม่ใช้อุปกรณ์','เริ่มต้น','S','🏋️',45,'ยืนกว้างเท่าหัวไหล่ ย่อตัวโดยดันสะโพกไปหลัง รักษาหลังตรง แล้วดันพื้นกลับขึ้น'],
@@ -18,7 +19,13 @@ const exercises=[
  ['High Knees','ยกเข่าสูง','คาร์ดิโอ','ไม่ใช้อุปกรณ์','ปานกลาง','A','🏃',40,'วิ่งอยู่กับที่โดยยกเข่าขึ้นสูง แกว่งแขนตามธรรมชาติ'],
  ['Dead Bug','เดดบัก','แกนกลาง','ไม่ใช้อุปกรณ์','เริ่มต้น','A','🐞',45,'นอนหงาย ยกแขนและขา สลับเหยียดแขนกับขาตรงข้ามโดยหลังแนบพื้น']
 ].map((x,i)=>({id:i+1,en:x[0],name:x[1],muscle:x[2],equipment:x[3],level:x[4],tier:x[5],emoji:x[6],seconds:x[7],instructions:x[8]}));
-exercises.push(...equipmentExercises);
+exercises.push(...equipmentExercises,...libraryExercises);
+const libraryMuscleAliases={'ขาและสะโพก':'ต้นขาด้านหน้า','อกและแขน':'หน้าอก','แกนกลาง':'หน้าท้อง','คาร์ดิโอ':'ทั้งตัว','หลัง':'หลังส่วนบน','ไหล่และแขน':'ไหล่','แขน':'ไบเซปส์','ยืดเหยียด':'ทั้งตัว'};
+exercises.forEach((exercise,index)=>{
+ exercise.primaryMuscle=exercise.primaryMuscle||libraryMuscleAliases[exercise.muscle]||exercise.muscle;
+ exercise.type=exercise.type||(exercise.muscle==='ยืดเหยียด'?'ยืดเหยียด':exercise.muscle==='คาร์ดิโอ'?'คาร์ดิโอ':exercise.equipment==='เสื่อโยคะ'?'โยคะ':'เวท / ยิม');
+ exercise.popularity=exercise.popularity||exercises.length-index;
+});
 const builtins=[
  {id:'starter',name:'เริ่มต้นอย่างมั่นใจ',goal:'ฟิตทั่วไป',level:'เริ่มต้น',minutes:18,description:'เริ่มฝึกทั้งตัวด้วยท่าพื้นฐานที่ทำได้ที่บ้าน',exerciseIds:[1,2,4,3,6]},
  {id:'burn',name:'เผาผลาญใน 20 นาที',goal:'ลดไขมัน',level:'ปานกลาง',minutes:20,description:'ขยับต่อเนื่อง เพิ่มการเต้นของหัวใจและความอึด',exerciseIds:[5,15,7,1,8]},
@@ -305,5 +312,60 @@ document.addEventListener('change',event=>{
     gymView.picked=event.target.checked?[...new Set([...gymView.picked,id])]:gymView.picked.filter(x=>x!==id);
     render();$(`[data-gym-pick="${id}"]`)?.focus();
   }else if(event.target.id==='gym-level'){gymView.level=event.target.value;render();}
+});
+render();
+
+// Full exercise library: training styles, detailed muscles, tiers, sorting and views.
+let libraryView={type:'ทั้งหมด',muscle:'ทั้งหมด',tier:'ทั้งหมด',equipment:'ทั้งหมด',level:'ทั้งหมด',sort:'ยอดนิยม',mode:'cards',owned:false,limit:36};
+const tierRank={S:5,A:4,B:3,C:2,D:1};
+const levelRank={'เริ่มต้น':1,'ปานกลาง':2,'ขั้นสูง':3};
+const levelDots=level=>Array.from({length:3},(_,index)=>`<i class="${index<(levelRank[level]||1)?'on':''}"></i>`).join('');
+const resetLibraryLimit=()=>{libraryView.limit=36};
+function libraryCard(exercise){
+ const favorite=(state.favorites||[]).includes(exercise.id);
+ return `<article class="library-card"><button class="library-card-visual" data-exercise="${exercise.id}" aria-label="ดูวิธีฝึก ${esc(exercise.name)}"><span class="library-level"><span class="difficulty-dots">${levelDots(exercise.level)}</span>${esc(exercise.level)}</span><span class="library-emoji" aria-hidden="true">${exercise.emoji}</span><span class="library-tier tier-${exercise.tier}">TIER ${exercise.tier}</span></button><button class="library-add ${favorite?'saved':''}" data-favorite="${exercise.id}" aria-label="${favorite?'นำออกจากรายการโปรด':'บันทึกท่า'}">${favorite?'✓':'＋'}</button><div class="library-card-body"><h3>${esc(exercise.name)}</h3><p>${esc(exercise.en)}</p><div class="library-card-meta"><span>${esc(exercise.primaryMuscle)}</span><span>•</span><span>${esc(exercise.equipment)}</span></div></div></article>`;
+}
+function libraryListRow(exercise){
+ const favorite=(state.favorites||[]).includes(exercise.id);
+ return `<article class="library-list-row"><button class="library-list-icon" data-exercise="${exercise.id}" aria-label="ดูวิธีฝึก ${esc(exercise.name)}">${exercise.emoji}</button><div class="grow"><h3>${esc(exercise.name)}</h3><p>${esc(exercise.en)} · ${esc(exercise.type)}</p></div><span class="library-list-muscle">${esc(exercise.primaryMuscle)}</span><span class="library-list-equipment">${esc(exercise.equipment)}</span><span class="library-tier tier-${exercise.tier}">TIER ${exercise.tier}</span><span class="difficulty-dots">${levelDots(exercise.level)}</span><button class="library-add ${favorite?'saved':''}" data-favorite="${exercise.id}" aria-label="${favorite?'นำออกจากรายการโปรด':'บันทึกท่า'}">${favorite?'✓':'＋'}</button></article>`;
+}
+library=function(){
+ const search=query.trim().toLocaleLowerCase('th');
+ const equipmentOptions=['ทั้งหมด',...new Set(exercises.map(exercise=>exercise.equipment))];
+ let results=exercises.filter(exercise=>
+  (libraryView.type==='ทั้งหมด'||exercise.type===libraryView.type)&&
+  (libraryView.muscle==='ทั้งหมด'||exercise.primaryMuscle===libraryView.muscle)&&
+  (libraryView.tier==='ทั้งหมด'||exercise.tier===libraryView.tier)&&
+  (libraryView.equipment==='ทั้งหมด'||exercise.equipment===libraryView.equipment)&&
+  (libraryView.level==='ทั้งหมด'||exercise.level===libraryView.level)&&
+  (!libraryView.owned||exercise.equipment==='ไม่ใช้อุปกรณ์'||state.equipment.includes(exercise.equipment))&&
+  (!search||`${exercise.name} ${exercise.en} ${exercise.primaryMuscle} ${exercise.equipment} ${exercise.type}`.toLocaleLowerCase('th').includes(search))
+ );
+ if(libraryView.sort==='Tier สูงสุด')results.sort((a,b)=>tierRank[b.tier]-tierRank[a.tier]||b.popularity-a.popularity);
+ else if(libraryView.sort==='ง่ายก่อน')results.sort((a,b)=>(levelRank[a.level]||1)-(levelRank[b.level]||1)||tierRank[b.tier]-tierRank[a.tier]);
+ else if(libraryView.sort==='ชื่อ ก–ฮ')results.sort((a,b)=>a.name.localeCompare(b.name,'th'));
+ else if(libraryView.sort==='เพิ่มล่าสุด')results.sort((a,b)=>b.id-a.id);
+ else results.sort((a,b)=>b.popularity-a.popularity);
+ const shown=results.slice(0,libraryView.limit);
+ const types=libraryTypeMeta.map(([type,icon])=>({type,icon,count:type==='ทั้งหมด'?exercises.length:exercises.filter(exercise=>exercise.type===type).length}));
+ const muscles=libraryMuscleOrder.map(muscle=>({muscle,count:muscle==='ทั้งหมด'?exercises.length:exercises.filter(exercise=>exercise.primaryMuscle===muscle).length})).filter(item=>item.count>0);
+ return `${header('EXERCISE LIBRARY','คลังท่า','รวมท่าเวท โยคะ แอโรบิก คาร์ดิโอ และยืดเหยียด พร้อมวิธีฝึกและตัวกรองละเอียด')}<section class="library-type-grid">${types.map(item=>`<button class="library-type ${libraryView.type===item.type?'active':''}" data-library-type="${esc(item.type)}"><span>${item.icon}</span><div><strong>${esc(item.type)}</strong><small>${item.count.toLocaleString('th-TH')} ท่า</small></div></button>`).join('')}</section><section class="library-controls"><div class="library-search-row"><label class="library-search"><span>⌕</span><input id="search" type="search" placeholder="ค้นหาท่า กล้ามเนื้อ หรืออุปกรณ์..." value="${esc(query)}"></label><label class="library-equipment"><span>อุปกรณ์</span><select id="library-equipment">${equipmentOptions.map(value=>`<option ${libraryView.equipment===value?'selected':''}>${esc(value)}</option>`).join('')}</select></label><button class="owned-toggle ${libraryView.owned?'active':''}" data-library-owned aria-pressed="${libraryView.owned}"><span>${libraryView.owned?'✓':'○'}</span> อุปกรณ์ของฉัน</button></div><div class="library-muscles" aria-label="กรองตามกล้ามเนื้อ">${muscles.map(item=>`<button class="chip ${libraryView.muscle===item.muscle?'active':''}" data-library-muscle="${esc(item.muscle)}">${esc(item.muscle)} <span>${item.count}</span></button>`).join('')}</div><div class="library-filter-row"><div class="library-tier-filter"><strong>Tier</strong>${['ทั้งหมด','S','A','B','C','D'].map(value=>`<button class="tier-filter ${libraryView.tier===value?'active':''} ${value!=='ทั้งหมด'?`tier-${value}`:''}" data-library-tier="${value}">${value==='ทั้งหมด'?'ทุกระดับ':value}</button>`).join('')}</div><label>ความยาก<select id="library-level">${['ทั้งหมด','เริ่มต้น','ปานกลาง','ขั้นสูง'].map(value=>`<option ${libraryView.level===value?'selected':''}>${value}</option>`).join('')}</select></label><details class="tier-help"><summary>Tier คืออะไร?</summary><div><b>S</b> ตัวเลือกเด่น · <b>A</b> ดีมาก · <b>B</b> ดี · <b>C</b> ทางเลือก · <b>D</b> เสริม<br><small>Tier เปรียบเทียบความคุ้มค่าของท่าในกลุ่มเดียวกัน ไม่ใช่ระดับความยาก</small></div></details></div></section><section class="library-results"><div class="library-results-head"><div><strong>พบ ${results.length.toLocaleString('th-TH')} ท่า</strong><span>${libraryView.type==='ทั้งหมด'?'ทุกประเภท':esc(libraryView.type)}${libraryView.muscle!=='ทั้งหมด'?` · ${esc(libraryView.muscle)}`:''}</span></div><div class="library-view-tools"><select id="library-sort">${['ยอดนิยม','Tier สูงสุด','ง่ายก่อน','ชื่อ ก–ฮ','เพิ่มล่าสุด'].map(value=>`<option ${libraryView.sort===value?'selected':''}>${value}</option>`).join('')}</select><div class="view-switch"><button data-library-mode="cards" class="${libraryView.mode==='cards'?'active':''}" aria-label="มุมมองการ์ด">▦ การ์ด</button><button data-library-mode="list" class="${libraryView.mode==='list'?'active':''}" aria-label="มุมมองรายการ">☷ รายการ</button></div></div></div>${shown.length?libraryView.mode==='cards'?`<div class="library-exercise-grid">${shown.map(libraryCard).join('')}</div>`:`<div class="library-list">${shown.map(libraryListRow).join('')}</div>`:`<div class="empty library-empty"><strong>ไม่พบท่าที่ตรงกับตัวกรอง</strong><p>ลองลบคำค้น หรือเปลี่ยนกล้ามเนื้อ อุปกรณ์ และ Tier</p><button class="btn" data-library-clear>ล้างตัวกรอง</button></div>`}${results.length>shown.length?`<div class="library-load"><button class="btn secondary" data-library-more>โหลดเพิ่มอีก ${Math.min(36,results.length-shown.length)} ท่า</button><small>แสดง ${shown.length} จาก ${results.length} ท่า</small></div>`:''}</section>`;
+};
+document.addEventListener('click',event=>{
+ const target=event.target.closest('[data-library-type],[data-library-muscle],[data-library-tier],[data-library-mode],[data-library-owned],[data-library-more],[data-library-clear]');
+ if(!target)return;
+ if(target.dataset.libraryType!==undefined){libraryView.type=target.dataset.libraryType;resetLibraryLimit();}
+ else if(target.dataset.libraryMuscle!==undefined){libraryView.muscle=target.dataset.libraryMuscle;resetLibraryLimit();}
+ else if(target.dataset.libraryTier!==undefined){libraryView.tier=target.dataset.libraryTier;resetLibraryLimit();}
+ else if(target.dataset.libraryMode!==undefined){libraryView.mode=target.dataset.libraryMode;}
+ else if(target.hasAttribute('data-library-owned')){libraryView.owned=!libraryView.owned;resetLibraryLimit();}
+ else if(target.hasAttribute('data-library-more')){libraryView.limit+=36;}
+ else if(target.hasAttribute('data-library-clear')){libraryView={type:'ทั้งหมด',muscle:'ทั้งหมด',tier:'ทั้งหมด',equipment:'ทั้งหมด',level:'ทั้งหมด',sort:'ยอดนิยม',mode:libraryView.mode,owned:false,limit:36};query='';}
+ render();
+});
+document.addEventListener('change',event=>{
+ if(event.target.id==='library-equipment'){libraryView.equipment=event.target.value;resetLibraryLimit();render();}
+ else if(event.target.id==='library-level'){libraryView.level=event.target.value;resetLibraryLimit();render();}
+ else if(event.target.id==='library-sort'){libraryView.sort=event.target.value;render();}
 });
 render();
