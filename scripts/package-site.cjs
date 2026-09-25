@@ -1,0 +1,17 @@
+const fs=require('node:fs');
+const path=require('node:path');
+const os=require('node:os');
+const {spawnSync}=require('node:child_process');
+const root=process.cwd(),source=path.join(root,'dist');
+const archive=path.resolve(process.argv[2]||'.sites-runtime/site.tar.gz');
+if(!fs.existsSync(path.join(source,'server/index.js')))throw new Error('Build the Worker first');
+const stage=fs.mkdtempSync(path.join(os.tmpdir(),'vigor-package-'));
+const dest=path.join(stage,'dist');
+fs.cpSync(source,dest,{recursive:true});
+const meta=path.join(dest,'.openai');fs.mkdirSync(meta,{recursive:true});
+fs.copyFileSync(path.join(root,'.openai/hosting.json'),path.join(meta,'hosting.json'));
+fs.cpSync(path.join(root,'drizzle'),path.join(meta,'drizzle'),{recursive:true});
+fs.mkdirSync(path.dirname(archive),{recursive:true});
+const result=spawnSync('tar',['-czf',archive,'-C',stage,'dist'],{encoding:'utf8'});
+if(result.status!==0)throw new Error(result.stderr);
+console.log(archive);

@@ -1,3 +1,5 @@
+import { equipmentCatalog, equipmentExercises, renderEquipment } from './equipment-catalog.js';
+const gymView={slug:'',search:'',muscle:'ทั้งหมด',level:'ทั้งหมด',picked:[]};
 const exercises=[
  ['Squat','สควอต','ขาและสะโพก','ไม่ใช้อุปกรณ์','เริ่มต้น','S','🏋️',45,'ยืนกว้างเท่าหัวไหล่ ย่อตัวโดยดันสะโพกไปหลัง รักษาหลังตรง แล้วดันพื้นกลับขึ้น'],
  ['Push-Up','วิดพื้น','อกและแขน','ไม่ใช้อุปกรณ์','เริ่มต้น','S','💪',40,'วางมือกว้างกว่าหัวไหล่เล็กน้อย เกร็งลำตัว ลดอกลงใกล้พื้น แล้วดันกลับ'],
@@ -16,6 +18,7 @@ const exercises=[
  ['High Knees','ยกเข่าสูง','คาร์ดิโอ','ไม่ใช้อุปกรณ์','ปานกลาง','A','🏃',40,'วิ่งอยู่กับที่โดยยกเข่าขึ้นสูง แกว่งแขนตามธรรมชาติ'],
  ['Dead Bug','เดดบัก','แกนกลาง','ไม่ใช้อุปกรณ์','เริ่มต้น','A','🐞',45,'นอนหงาย ยกแขนและขา สลับเหยียดแขนกับขาตรงข้ามโดยหลังแนบพื้น']
 ].map((x,i)=>({id:i+1,en:x[0],name:x[1],muscle:x[2],equipment:x[3],level:x[4],tier:x[5],emoji:x[6],seconds:x[7],instructions:x[8]}));
+exercises.push(...equipmentExercises);
 const builtins=[
  {id:'starter',name:'เริ่มต้นอย่างมั่นใจ',goal:'ฟิตทั่วไป',level:'เริ่มต้น',minutes:18,description:'เริ่มฝึกทั้งตัวด้วยท่าพื้นฐานที่ทำได้ที่บ้าน',exerciseIds:[1,2,4,3,6]},
  {id:'burn',name:'เผาผลาญใน 20 นาที',goal:'ลดไขมัน',level:'ปานกลาง',minutes:20,description:'ขยับต่อเนื่อง เพิ่มการเต้นของหัวใจและความอึด',exerciseIds:[5,15,7,1,8]},
@@ -49,7 +52,7 @@ const allPlans=()=>[...builtins,...state.plans];
 function notify(msg){clearTimeout(toastTimer);document.querySelector('.toast')?.remove();let el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.append(el);toastTimer=setTimeout(()=>el.remove(),3000)}
 function go(p){page=p;location.hash=p;query='';filter='ทั้งหมด';render();window.scrollTo(0,0)}
 function layout(content){
-  const active=menu.some(x=>x[0]===page)?page:'home';
+  const active=page.startsWith('equipment/')?'equipment':menu.some(x=>x[0]===page)?page:'home';
   const account=signedIn?`<button class="btn small secondary" data-go="member" title="เปิดบัญชีสมาชิก">☁ บัญชีสมาชิก</button>`:`<a class="btn small secondary" href="${esc(signInUrl)}" target="_top">เข้าสู่ระบบเพื่อบันทึก</a>`;
   return `<div class="app"><aside class="sidebar"><div class="brand"><span class="brand-mark">V</span>VIGOR<span>.</span></div><div class="nav-label">เมนูหลัก</div><nav class="nav">${menu.map(([id,icon,label])=>`<button data-go="${id}" class="${active===id?'active':''}"><span class="icon">${icon}</span>${label}</button>`).join('')}</nav><div class="side-bottom"><strong>เริ่มจากวันนี้</strong><small>การฝึกเล็ก ๆ ที่ทำต่อเนื่อง สร้างผลลัพธ์ที่ยิ่งใหญ่</small><button data-go="programs">เลือกโปรแกรม →</button></div></aside><main class="main"><header class="topbar"><div class="crumb">VIGOR / ${menu.find(x=>x[0]===active)?.[2]||'หน้าหลัก'}</div><div class="top-actions">${account}<span class="today">${niceDate()}</span><div class="avatar">${signedIn?esc((host.dataset.name||'V').slice(0,1).toUpperCase()):'V'}</div></div></header>${content}</main></div><nav class="mobile-nav">${menu.filter(x=>['home','library','programs','builder','schedule'].includes(x[0])).map(([id,icon,label])=>`<button data-go="${id}" class="${active===id?'active':''}"><span>${icon}</span>${label}</button>`).join('')}</nav>${modalHTML()}`
 }
@@ -165,8 +168,12 @@ schedule=function(){
 const baseRender=render;
 render=function(){
   const pages={home,library,programs,builder,equipment,schedule,nutrition,member,settings,workout:workoutPage,muscle,sets,smart};
-  const content=(pages[page]||home)();
+  const isEquipment=page==='equipment'||page.startsWith('equipment/');
+  const slug=page.startsWith('equipment/')?page.slice(10):'';
+  if(isEquipment&&gymView.slug!==slug)Object.assign(gymView,{slug,search:'',muscle:'ทั้งหมด',level:'ทั้งหมด',picked:[]});
+  const content=isEquipment?renderEquipment({esc,exercises,owned:state.equipment,...gymView},slug):(pages[page]||home)();
   $('#app').innerHTML=layout(content);
+  document.querySelector('.mobile-nav')?.insertAdjacentHTML('beforeend',`<button data-go="equipment" class="${isEquipment?'active':''}"><span>◈</span>โฮมยิม</button>`);
   if(page==='library'&&window.equipmentFilter){document.querySelectorAll('.exercise').forEach(el=>{let e=exercises.find(x=>x.id===Number(el.dataset.exercise));if(window.equipmentFilter!=='ทั้งหมด'&&e.equipment!==window.equipmentFilter)el.style.display='none'})}
 };
 document.addEventListener('click',event=>{
@@ -209,4 +216,34 @@ nutrition=function(){
 };
 document.addEventListener('click',event=>{const target=event.target.closest('[data-food-category]');if(!target)return;foodCategory=target.dataset.foodCategory||'ทั้งหมด';render();});
 document.addEventListener('input',event=>{if(event.target.id!=='food-search')return;foodQuery=event.target.value;render();const search=$('#food-search');search?.focus();search?.setSelectionRange(foodQuery.length,foodQuery.length);});
+document.addEventListener('click',event=>{
+  const target=event.target.closest('[data-gym-own],[data-gym-muscle],[data-gym-scroll],[data-gym-build]');
+  if(!target)return;
+  if(target.hasAttribute('data-gym-scroll')){event.preventDefault();$('#gym-exercises')?.scrollIntoView({behavior:'smooth'});return;}
+  if(target.dataset.gymOwn){
+    const item=equipmentCatalog.find(x=>x.slug===target.dataset.gymOwn);if(!item)return;
+    const owns=state.equipment.includes(item.name);
+    state.equipment=owns?state.equipment.filter(x=>x!==item.name):[...state.equipment,item.name];
+    save();render();notify(owns?'นำออกจากอุปกรณ์ของฉันแล้ว':'เพิ่มในอุปกรณ์ของฉันแล้ว');
+  }else if(target.dataset.gymMuscle){gymView.muscle=target.dataset.gymMuscle;render();$('#gym-exercises')?.scrollIntoView({behavior:'smooth'});}
+  else if(target.dataset.gymBuild){
+    const item=equipmentCatalog.find(x=>x.slug===target.dataset.gymBuild);if(!item)return;
+    const ids=gymView.picked.filter(id=>exercises.some(x=>x.id===id&&x.equipment===item.name));
+    if(!ids.length)return;
+    const seconds=ids.reduce((n,id)=>n+exercises.find(x=>x.id===id).seconds,0)+Math.max(0,ids.length-1)*Number(state.rest);
+    const plan={id:'custom-'+crypto.randomUUID(),name:`ชุดฝึก${item.name}`,goal:'ฟิตทั่วไป',level:'เริ่มต้น',minutes:Math.ceil(seconds/60),description:`${ids.length} ท่า · ฝึก 1 รอบ · พัก ${state.rest} วินาทีระหว่างท่า`,exerciseIds:ids};
+    state.plans.push(plan);save();gymView.picked=[];modal={type:'plan',id:plan.id};go('sets');notify('บันทึกชุดฝึกแล้ว กดเริ่มเพื่อฝึกตามลำดับ');
+  }
+});
+document.addEventListener('input',event=>{
+  if(event.target.id!=='gym-search')return;
+  gymView.search=event.target.value;render();const input=$('#gym-search');input?.focus();
+});
+document.addEventListener('change',event=>{
+  if(event.target.matches('[data-gym-pick]')){
+    const id=Number(event.target.dataset.gymPick);
+    gymView.picked=event.target.checked?[...new Set([...gymView.picked,id])]:gymView.picked.filter(x=>x!==id);
+    render();$(`[data-gym-pick="${id}"]`)?.focus();
+  }else if(event.target.id==='gym-level'){gymView.level=event.target.value;render();}
+});
 render();
