@@ -27,7 +27,7 @@ const builtins=[
  {id:'core',name:'แกนกลางแข็งแรง',goal:'ความแข็งแรง',level:'เริ่มต้น',minutes:15,description:'ฝึกหน้าท้องและแกนกลางเพื่อการเคลื่อนไหวที่มั่นคง',exerciseIds:[3,8,16,7]}
 ];
 const foods=[['ข้าวสวย 1 ทัพพี',80,2,18,0,'🍚'],['ไข่ต้ม 1 ฟอง',78,6,1,5,'🥚'],['อกไก่ย่าง 100 กรัม',165,31,0,4,'🍗'],['กล้วย 1 ผล',105,1,27,0,'🍌'],['นมจืด 1 แก้ว',120,8,12,5,'🥛'],['โยเกิร์ตรสธรรมชาติ',90,7,11,2,'🥣'],['สลัดผัก 1 จาน',85,3,12,3,'🥗'],['ข้าวกล้อง 1 ทัพพี',110,3,23,1,'🍛'],['ปลาอบ 100 กรัม',140,26,0,4,'🐟'],['แอปเปิล 1 ผล',95,0,25,0,'🍎']].map((x,i)=>({id:i+1,name:x[0],cal:x[1],protein:x[2],carbs:x[3],fat:x[4],emoji:x[5]}));
-const menu=[['home','⌂','หน้าพร้อมฝึก'],['muscle','◒','แผนที่กล้ามเนื้อ'],['library','▦','คลังท่า'],['equipment','◈','ยิมที่บ้าน'],['sets','▤','ชุดของฉัน'],['smart','✦','Smart Builder'],['schedule','▣','ตารางฝึก'],['nutrition','◉','โภชนาการ'],['member','◎','สมาชิก'],['settings','⚙','ตั้งค่า']];
+const menu=[['home','⌂','หน้าพร้อมฝึก'],['muscle','◒','แผนที่กล้ามเนื้อ'],['library','▦','คลังท่า'],['equipment','◈','ยิมที่บ้าน'],['sets','▤','ชุดของฉัน'],['programs','▤','โปรแกรมพร้อมฝึก'],['smart','✦','Smart Builder'],['builder','⊕','สร้างชุดเอง'],['workout','▶','ฝึกซ้อม'],['schedule','▣','ตารางฝึก'],['nutrition','◉','โภชนาการ'],['member','◎','สมาชิก'],['settings','⚙','ตั้งค่า']];
 const key='vigor-state-v1';
 const initial={plans:[],sessions:[],meals:[],equipment:[],goal:1900,voice:false,rest:20,profile:{displayName:'',fitnessGoal:'ฟิตทั่วไป',level:'เริ่มต้น',weeklyTarget:3},favorites:[],schedule:{},ready:{goal:'ทั้งหมด',equipment:'ทั้งหมด',minutes:0}};
 const host=document.querySelector('#app');
@@ -194,6 +194,66 @@ document.addEventListener('click',event=>{
     state.plans.push(plan);save();modal={type:'plan',id:plan.id};page='sets';location.hash='sets';render();notify('สร้างและบันทึกชุดของคุณแล้ว');
   }else if(target.dataset.scheduleDay){const select=$('#schedule-plan'),id=select?.value,date=target.dataset.scheduleDay;if(!id)return notify('เลือกชุดก่อน');state.schedule={...(state.schedule||{})};state.schedule[date]=String(state.schedule[date])===String(id)?undefined:id;save();render();notify(state.schedule[date]?'วางแผนฝึกแล้ว':'ลบจากตารางแล้ว');}
 });
+render();
+
+// Complete the remaining product surfaces with useful starter content.
+const completeTemplates=[
+ {id:'yoga-beginner',name:'โยคะสำหรับมือใหม่',goal:'ฟื้นฟู',level:'เริ่มต้น',minutes:20,description:'ยืดหลัง สะโพก และไหล่ด้วยลำดับที่ค่อยเป็นค่อยไป',exerciseIds:[13,14,126,127,16]},
+ {id:'aerobic-low',name:'แอโรบิคแรงกระแทกต่ำ',goal:'ลดไขมัน',level:'เริ่มต้น',minutes:25,description:'ขยับต่อเนื่องโดยไม่ต้องกระโดด เหมาะกับวันที่อยากเคลื่อนไหวเบา ๆ',exerciseIds:[5,15,7,8,6]},
+ {id:'dumbbell20',name:'ดัมเบลฟูลบอดี้ 20 นาที',goal:'เพิ่มกล้ามเนื้อ',level:'เริ่มต้น',minutes:20,description:'สควอต ดัน ดึง และพับสะโพกด้วยดัมเบลหนึ่งคู่',exerciseIds:[11,102,9,104,103]},
+ {id:'desk-relief',name:'คลายหลังคนทำงานโต๊ะ',goal:'ฟื้นฟู',level:'เริ่มต้น',minutes:14,description:'เปิดอก คลายหลังส่วนบนและสะโพกหลังนั่งนาน',exerciseIds:[14,13,126,127,6]},
+ {id:'strength-5',name:'Strength 5 × 5 ฉบับบ้าน',goal:'ความแข็งแรง',level:'ปานกลาง',minutes:35,description:'ฝึกท่าหลักด้วยจังหวะช้าและพักเต็มเพื่อสร้างพื้นฐานแรง',exerciseIds:[1,2,104,9,3]}
+];
+builtins.push(...completeTemplates);
+let completeProgramSort='แนะนำ';
+const previousPrograms=programs;
+programs=function(){
+ const all=allPlans(),goals=['ทั้งหมด',...new Set(all.map(p=>p.goal))],levels=['ทั้งหมด',...new Set(all.map(p=>p.level))];
+ let plans=all.filter(p=>programFilter==='ทั้งหมด'||p.goal===programFilter);
+ if(completeProgramSort==='สั้น → ยาว')plans=plans.slice().sort((a,b)=>(a.minutes||0)-(b.minutes||0));
+ if(completeProgramSort==='ยาว → สั้น')plans=plans.slice().sort((a,b)=>(b.minutes||0)-(a.minutes||0));
+ if(completeProgramSort==='ง่าย → ยาก')plans=plans.slice().sort((a,b)=>['เริ่มต้น','ปานกลาง','ขั้นสูง'].indexOf(a.level)-['เริ่มต้น','ปานกลาง','ขั้นสูง'].indexOf(b.level));
+ return `${header('READY-MADE WORKOUTS','โปรแกรมพร้อมฝึก','เลือกเป้าหมาย เวลา และระดับ แล้วกดเริ่มได้ทันที')}<div class="program-overview"><div class="panel"><strong>${all.length}</strong><span>โปรแกรมพร้อมฝึก</span></div><div class="panel"><strong>${goals.length-1}</strong><span>เป้าหมาย</span></div><div class="panel"><strong>${levels.length-1}</strong><span>ระดับ</span></div></div><div class="toolbar program-filters"><div class="chips">${goals.map(g=>`<button class="chip ${programFilter===g?'active':''}" data-program-filter="${esc(g)}">${esc(g)}</button>`).join('')}</div><select id="program-sort" data-program-sort><option>แนะนำ</option><option>สั้น → ยาว</option><option>ยาว → สั้น</option><option>ง่าย → ยาก</option></select><button class="btn" data-go="builder">＋ สร้างชุดเอง</button></div><div class="section-head"><h2>แสดง ${plans.length} โปรแกรม</h2><span class="muted">กด “ดู” เพื่อเช็กลำดับท่า หรือ “เริ่ม” เพื่อเปิดตัวเล่น</span></div><div class="grid program-grid">${plans.map(programCard).join('')}</div>`;
+};
+const previousSets=sets;
+sets=function(){
+ const mine=state.plans||[],recommended=allPlans().filter(p=>!mine.some(x=>String(x.id)===String(p.id))).slice(0,8);
+ return `${header('MY SETS','ชุดฝึกของฉัน','จัดระเบียบชุดฝึก ปักหมุดท่าโปรด และเริ่มฝึกพร้อมตัวจับเวลา')}<div class="set-actions"><button class="btn" data-go="builder">＋ สร้างชุดฝึก</button><button class="btn secondary" data-go="smart">✦ สร้างอัตโนมัติ</button><button class="btn ghost" data-go="programs">เลือกจากโปรแกรม</button></div><section class="panel set-steps"><div><b>1</b><strong>ตั้งชื่อและเป้าหมาย</strong><small>เลือกให้เหมาะกับวันที่จะฝึก</small></div><div><b>2</b><strong>เลือกท่า</strong><small>จากคลังท่าหรืออุปกรณ์</small></div><div><b>3</b><strong>จัดลำดับ</strong><small>ตั้งเวลาพักและเล่นตามลำดับ</small></div><div><b>4</b><strong>บันทึกและเริ่ม</strong><small>เพิ่มลงตารางได้ทันที</small></div></section><section class="section"><div class="section-head"><div><h2>ของฉัน <span class="muted">${mine.length}</span></h2><p>${mine.length?'ชุดที่คุณสร้างและบันทึกไว้':'เริ่มได้จากโปรแกรมแนะนำ แล้วปรับเป็นชุดของคุณเอง'}</p></div></div><div class="grid program-grid">${mine.length?mine.map(programCard).join(''):'<div class="empty set-empty"><strong>ยังไม่มีชุดฝึกส่วนตัว</strong><p>เลือกโปรแกรมแนะนำด้านล่าง หรือสร้างชุดฝึกของคุณเอง</p><button class="btn" data-go="programs">ดูโปรแกรมแนะนำ</button></div>'}</div></section><section class="section"><div class="section-head"><div><h2>โปรแกรมแนะนำ <span class="muted">${recommended.length}</span></h2><p>ชุดเริ่มต้นที่มีข้อมูลพร้อมให้ดูและเริ่ม</p></div><button class="text-link" data-go="programs">ดูทั้งหมด →</button></div><div class="grid program-grid">${recommended.map(programCard).join('')}</div></section><section class="section"><div class="section-head"><h2>ท่าโปรด</h2><span class="muted">${(state.favorites||[]).length} ท่า</span></div><div class="grid exercise-grid">${(state.favorites||[]).map(id=>exercises.find(x=>x.id===id)).filter(Boolean).map(exerciseCard).join('')||'<div class="empty">กด ☆ บันทึกบนการ์ดท่าที่คุณชอบ</div>'}</div></section>`;
+};
+const previousBuilder=builder;
+builder=function(){
+ return `${header('BUILD YOUR OWN','สร้างชุดฝึก','ทำตาม 4 ขั้นตอน แล้วบันทึกชุดที่เข้ากับคุณ')}<section class="panel builder-progress"><div class="current"><b>1</b><span>รายละเอียด</span></div><div><b>2</b><span>เลือกท่า</span></div><div><b>3</b><span>จัดลำดับ</span></div><div><b>4</b><span>บันทึก</span></div></section><div class="template-strip"><strong>เริ่มเร็วด้วยชุดตัวอย่าง</strong><div class="chips">${completeTemplates.slice(0,4).map(p=>`<button class="chip" data-builder-template="${p.id}">${esc(p.name)}</button>`).join('')}</div></div>${previousBuilder()}`;
+};
+const previousWorkoutPage=workoutPage;
+workoutPage=function(){
+ if(workout)return previousWorkoutPage();
+ return `${header('WORKOUT PLAYER','พร้อมเริ่มฝึก','เลือกโปรแกรม แล้วทำตามตัวจับเวลาและคำแนะนำทีละท่า')}<section class="panel player-intro"><div class="player-intro-icon">▶</div><div><h2>ตัวเล่น VIGOR</h2><p>มีช่วงฝึก พัก และความคืบหน้าชัดเจนในหน้าเดียว เปิดโค้ชเสียงได้จากตั้งค่า</p><div class="chips"><span class="chip active">จับเวลาทุกท่า</span><span class="chip">พักระหว่างท่า</span><span class="chip">บันทึกประวัติอัตโนมัติ</span></div></div></section><section class="section"><div class="section-head"><div><h2>เลือกโปรแกรมที่จะเริ่ม</h2><p>แนะนำสำหรับคุณวันนี้</p></div><button class="text-link" data-go="programs">ดูโปรแกรมทั้งหมด →</button></div><div class="grid program-grid">${allPlans().slice(0,4).map(programCard).join('')}</div></section><section class="panel player-help"><h3>วิธีใช้ตัวเล่น</h3><div class="list"><div class="list-item"><span>1</span><div class="grow"><strong>เริ่ม / ทำต่อ</strong><small>ตัวจับเวลาจะนับถอยหลังและแจ้งท่าถัดไป</small></div></div><div class="list-item"><span>2</span><div class="grow"><strong>ข้าม</strong><small>ข้ามท่าหรือช่วงพักได้ตามสภาพร่างกาย</small></div></div><div class="list-item"><span>3</span><div class="grow"><strong>จบการฝึก</strong><small>บันทึกครั้งฝึกและเวลาลงในตารางโดยอัตโนมัติ</small></div></div></div></section>`;
+};
+const previousSchedule=schedule;
+schedule=function(){
+ const target=(state.profile||initial.profile).weeklyTarget||3;
+ const doneThisWeek=state.sessions.filter(s=>Date.now()-new Date(s.date).getTime()<7*864e5).length;
+ const minutesThisWeek=state.sessions.filter(s=>Date.now()-new Date(s.date).getTime()<7*864e5).reduce((n,s)=>n+s.minutes,0);
+ return `${header('WEEKLY PLAN','ตารางฝึกของฉัน','วางแผนล่วงหน้า ติดตามสตรีค และเห็นวันที่คุณลงมือทำ')}<div class="schedule-stats"><div class="stat"><div class="stat-icon">◷</div><div class="value">${doneThisWeek}/${target}</div><div class="label">เป้าหมายสัปดาห์นี้</div></div><div class="stat"><div class="stat-icon">⚡</div><div class="value">${minutesThisWeek}</div><div class="label">นาทีในสัปดาห์นี้</div></div><div class="stat"><div class="stat-icon">✓</div><div class="value">${state.sessions.length}</div><div class="label">ฝึกทั้งหมด</div></div></div>${previousSchedule()}<section class="section"><div class="section-head"><div><h2>ชุดฝึกที่แนะนำสำหรับสัปดาห์นี้</h2><p>เริ่มจากวันไหนก็ได้ แล้ววางลงในตารางด้านบน</p></div></div><div class="grid program-grid schedule-recommendations">${allPlans().slice(0,4).map(programCard).join('')}</div></section>`;
+};
+const previousLibrary=library;
+library=function(){
+ const result=previousLibrary();
+ const counts=[['ทั้งหมด',exercises.length],['เริ่มต้น',exercises.filter(x=>x.level==='เริ่มต้น').length],['ปานกลาง',exercises.filter(x=>x.level==='ปานกลาง').length],['ดัมเบล',exercises.filter(x=>x.equipment==='ดัมเบล').length],['ไม่ใช้อุปกรณ์',exercises.filter(x=>x.equipment==='ไม่ใช้อุปกรณ์').length]];
+ return `${header('EXERCISE LIBRARY','คลังท่าออกกำลังกาย','ค้นหาท่า กรองตามกล้ามเนื้อ อุปกรณ์ และระดับ แล้วกดดูวิธีฝึก')}<div class="library-summary">${counts.map(([label,count])=>`<div class="panel"><strong>${count}</strong><span>${label} ${label==='ทั้งหมด'?'ท่า':'ท่า'}</span></div>`).join('')}</div>${result.replace(/^.*?<div class="toolbar"/, '<div class="toolbar"')}`;
+};
+const previousSettings=settings;
+settings=function(){return `${previousSettings()}<section class="section settings-guide"><div class="section-head"><div><h2>คู่มือเริ่มต้น</h2><p>ตั้งค่าเหล่านี้ก่อนเริ่ม เพื่อให้ตัวเล่นเข้ากับคุณ</p></div></div><div class="grid program-grid"><div class="panel"><span class="stat-icon">◷</span><h3>เลือกเวลาพัก</h3><p class="muted">พัก 10–45 วินาทีตามความหนักของท่า แล้วค่อยเพิ่มเมื่อเริ่มชิน</p></div><div class="panel"><span class="stat-icon">🔊</span><h3>เปิดโค้ชเสียง</h3><p class="muted">ให้ VIGOR อ่านชื่อท่าและแจ้งการเปลี่ยนช่วงฝึกผ่านเสียงของอุปกรณ์</p></div><div class="panel"><span class="stat-icon">☁</span><h3>เข้าสู่ระบบสมาชิก</h3><p class="muted">เก็บโปรแกรม ประวัติ และเป้าหมายข้ามอุปกรณ์ด้วยบัญชี ChatGPT</p><button class="btn small secondary" data-go="member">เปิดหน้าสมาชิก</button></div></div></section>`};
+
+document.addEventListener('click',event=>{
+ const target=event.target.closest('[data-builder-template]');
+ if(!target)return;
+ if(target.dataset.builderTemplate){
+  const plan=allPlans().find(p=>String(p.id)===String(target.dataset.builderTemplate));
+   if(plan){selected=[...plan.exerciseIds];render();updateSelected();notify(`เลือก ${plan.name} แล้ว ปรับลำดับท่าได้เลย`);}
+  }
+ });
+document.addEventListener('change',event=>{if(event.target.id==='program-sort'){completeProgramSort=event.target.value;render();}});
 render();
 
 // Expanded food library with categories for quick meal logging.

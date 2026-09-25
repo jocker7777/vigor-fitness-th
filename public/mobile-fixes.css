@@ -1,0 +1,4 @@
+/* Keep long food names and nutrition metadata inside the mobile card width. */
+.food-row .grow{min-width:0}
+.food-row small{display:block;overflow-wrap:anywhere}
+@media(max-width:520px){.food-grid{grid-template-columns:1fr}}
