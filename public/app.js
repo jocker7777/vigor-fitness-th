@@ -2,7 +2,7 @@ import { equipmentCatalog, equipmentExercises, renderEquipment } from './equipme
 import { libraryExercises, libraryTypeMeta, libraryMuscleOrder } from './exercise-library.js';
 import { fastfitExercises } from './fastfit-adapter.js';
 import { foods, renderFoodLibrary } from './food-library.js';
-import { anatomyView, anatomyGroups, renderAnatomy } from './anatomy-map.js';
+import { anatomyView, anatomyGroups, renderAnatomy, showAnatomyHover } from './anatomy-map.js';
 const gymView={slug:'',search:'',muscle:'ทั้งหมด',level:'ทั้งหมด',picked:[]};
 const exercises=[
  ['Squat','สควอต','ขาและสะโพก','ไม่ใช้อุปกรณ์','เริ่มต้น','S','🏋️',45,'ยืนกว้างเท่าหัวไหล่ ย่อตัวโดยดันสะโพกไปหลัง รักษาหลังตรง แล้วดันพื้นกลับขึ้น'],
@@ -338,6 +338,7 @@ library=function(){
  let results=catalogue.filter(exercise=>
   (libraryView.type==='ทั้งหมด'||exercise.type===libraryView.type)&&
   (libraryView.muscles?.length?libraryView.muscles.includes(exercise.primaryMuscle):(libraryView.muscle==='ทั้งหมด'||exercise.primaryMuscle===libraryView.muscle))&&
+  (!libraryView.anatomy?.length||libraryView.anatomy.some(code=>exercise.anatomyCodes.includes(code)))&&
   (libraryView.tier==='ทั้งหมด'||exercise.tier===libraryView.tier)&&
   (libraryView.equipment==='ทั้งหมด'||exercise.equipment===libraryView.equipment)&&
   (libraryView.level==='ทั้งหมด'||exercise.level===libraryView.level)&&
@@ -358,7 +359,7 @@ document.addEventListener('click',event=>{
  const target=event.target.closest('[data-library-type],[data-library-muscle],[data-library-tier],[data-library-mode],[data-library-owned],[data-library-more],[data-library-clear]');
  if(!target)return;
  if(target.dataset.libraryType!==undefined){libraryView.type=target.dataset.libraryType;resetLibraryLimit();}
- else if(target.dataset.libraryMuscle!==undefined){libraryView.muscle=target.dataset.libraryMuscle;libraryView.muscles=[];resetLibraryLimit();}
+ else if(target.dataset.libraryMuscle!==undefined){libraryView.muscle=target.dataset.libraryMuscle;libraryView.muscles=[];libraryView.anatomy=[];resetLibraryLimit();}
  else if(target.dataset.libraryTier!==undefined){libraryView.tier=target.dataset.libraryTier;resetLibraryLimit();}
  else if(target.dataset.libraryMode!==undefined){libraryView.mode=target.dataset.libraryMode;}
  else if(target.hasAttribute('data-library-owned')){libraryView.owned=!libraryView.owned;resetLibraryLimit();}
@@ -377,21 +378,42 @@ document.addEventListener('click',event=>{
  if(target.dataset.anatomyMuscle){
   const code=target.dataset.anatomyMuscle;
   if(!anatomyGroups.some(group=>group.code===code))return;
-  anatomyView.selected=anatomyView.multi?(anatomyView.selected.includes(code)?anatomyView.selected.filter(item=>item!==code):[...anatomyView.selected,code]):[code];
-  render();document.querySelector(`.anatomy-group-card[data-anatomy-muscle="${code}"]`)?.focus();
+  anatomyView.selected=anatomyView.selected.includes(code)?anatomyView.selected.filter(item=>item!==code):(anatomyView.multi?[...anatomyView.selected,code]:[code]);
+  const side=target.dataset.anatomySide;
+  render();
+  document.querySelector(side?`.anatomy-hotspot[data-anatomy-side="${side}"][data-anatomy-muscle="${code}"]`:`.anatomy-group-card[data-anatomy-muscle="${code}"]`)?.focus({preventScroll:true});
+  if(side&&event.clientX)showAnatomyHover(code,event.clientX,event.clientY);
  }else if(target.dataset.anatomyView){anatomyView.view=target.dataset.anatomyView;render();}
  else if(target.dataset.anatomyGender){anatomyView.gender=target.dataset.anatomyGender;render();}
  else if(target.hasAttribute('data-anatomy-multi')){anatomyView.multi=!anatomyView.multi;if(!anatomyView.multi)anatomyView.selected=anatomyView.selected.slice(-1);render();}
  else if(target.hasAttribute('data-anatomy-clear')){anatomyView.selected=[];render();}
  else if(target.hasAttribute('data-anatomy-library')){
-  libraryView.muscles=anatomyGroups.filter(group=>anatomyView.selected.includes(group.code)).map(group=>group.libraryName);
-  libraryView.muscle='ทั้งหมด';resetLibraryLimit();go('library');
+  libraryView={type:'ทั้งหมด',muscle:'ทั้งหมด',muscles:[],anatomy:[...anatomyView.selected],tier:'ทั้งหมด',equipment:'ทั้งหมด',level:'ทั้งหมด',sort:'ยอดนิยม',mode:'cards',owned:false,limit:36};
+  query='';go('library');
  }
 });
 document.addEventListener('keydown',event=>{
  if(!event.target.matches('svg [data-anatomy-muscle]')||!['Enter',' '].includes(event.key))return;
  event.preventDefault();event.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));
 });
+document.addEventListener('pointermove',event=>{
+ if(page!=='muscle')return;
+ const target=event.target.closest('svg [data-anatomy-muscle]');
+ showAnatomyHover(target?.dataset.anatomyMuscle,event.clientX,event.clientY);
+});
+document.addEventListener('pointerout',event=>{
+ if(event.target.closest('svg [data-anatomy-muscle]')&&!event.relatedTarget?.closest?.('svg [data-anatomy-muscle]'))showAnatomyHover(null,0,0);
+});
+document.addEventListener('focusin',event=>{
+ const target=event.target.closest('svg [data-anatomy-muscle]');
+ if(target){const box=target.getBoundingClientRect();showAnatomyHover(target.dataset.anatomyMuscle,box.left+box.width/2,box.top);}
+});
+document.addEventListener('focusout',event=>{if(event.target.closest('svg [data-anatomy-muscle]'))showAnatomyHover(null,0,0);});
+const libraryWithAnatomyResults=library;
+library=function(){
+ const banner=libraryView.anatomy?.length?`<div class="anatomy-library-filter"><span>จุดกล้ามเนื้อ: ${libraryView.anatomy.map(code=>esc(anatomyGroups.find(part=>part.code===code)?.name||code)).join(' · ')}</span><button data-library-clear>ล้างการเลือก</button></div>`:'';
+ return banner+libraryWithAnatomyResults();
+};
 const originalModalHTML=modalHTML;
 modalHTML=function(){
  if(modal?.type!=='exercise')return originalModalHTML();

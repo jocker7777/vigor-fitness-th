@@ -39,8 +39,8 @@ async function loadPage(page) {
     }
   }
   // Import factual catalogue fields. The source's original prose and 3D assets stay on its site.
-  const compact = records.map(({ id, slug, name, en, m, e, a, lv, cat, tr, sets, reps, time, rest, met }) => ({
-    id, slug, name, en, m, e, a, lv, cat, tr, sets, reps, time, rest, met
+  const compact = records.map(({ id, slug, name, en, m, e, a, f, lv, cat, tr, sets, reps, time, rest, met }) => ({
+    id, slug, name, en, m, e, a, f, lv, cat, tr, sets, reps, time, rest, met
   }));
   fs.writeFileSync(output,
     '// Public exercise metadata from FastFit, imported ' + new Date().toISOString().slice(0, 10) + '.\n' +
