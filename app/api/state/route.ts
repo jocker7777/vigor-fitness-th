@@ -23,12 +23,15 @@ export async function PUT(request: Request) {
   try { input = JSON.parse(raw); } catch { return Response.json({ error: 'invalid_json' }, { status: 400 }); }
   if (!input || typeof input !== 'object' || Array.isArray(input)) return Response.json({ error: 'invalid_state' }, { status: 400 });
   const data = input as Record<string, unknown>;
-  if (!['plans','sessions','meals','equipment'].every(key => Array.isArray(data[key]) && (data[key] as unknown[]).length <= 2000)) return Response.json({ error: 'invalid_state' }, { status: 400 });
+  if (!['plans','sessions','meals','equipment','favorites'].every(key => Array.isArray(data[key]) && (data[key] as unknown[]).length <= 2000)) return Response.json({ error: 'invalid_state' }, { status: 400 });
   const state = {
     plans: data.plans,
     sessions: data.sessions,
     meals: data.meals,
     equipment: data.equipment,
+    favorites: data.favorites,
+    schedule: data.schedule && typeof data.schedule === 'object' && !Array.isArray(data.schedule) ? data.schedule : {},
+    ready: data.ready && typeof data.ready === 'object' && !Array.isArray(data.ready) ? data.ready : { goal: 'ทั้งหมด', equipment: 'ทั้งหมด', minutes: 0 },
     goal: typeof data.goal === 'number' && data.goal >= 500 && data.goal <= 6000 ? data.goal : 1900,
     voice: data.voice === true,
     rest: typeof data.rest === 'number' && data.rest >= 0 && data.rest <= 300 ? data.rest : 20,

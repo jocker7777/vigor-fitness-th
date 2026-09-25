@@ -24,9 +24,9 @@ const builtins=[
  {id:'core',name:'แกนกลางแข็งแรง',goal:'ความแข็งแรง',level:'เริ่มต้น',minutes:15,description:'ฝึกหน้าท้องและแกนกลางเพื่อการเคลื่อนไหวที่มั่นคง',exerciseIds:[3,8,16,7]}
 ];
 const foods=[['ข้าวสวย 1 ทัพพี',80,2,18,0,'🍚'],['ไข่ต้ม 1 ฟอง',78,6,1,5,'🥚'],['อกไก่ย่าง 100 กรัม',165,31,0,4,'🍗'],['กล้วย 1 ผล',105,1,27,0,'🍌'],['นมจืด 1 แก้ว',120,8,12,5,'🥛'],['โยเกิร์ตรสธรรมชาติ',90,7,11,2,'🥣'],['สลัดผัก 1 จาน',85,3,12,3,'🥗'],['ข้าวกล้อง 1 ทัพพี',110,3,23,1,'🍛'],['ปลาอบ 100 กรัม',140,26,0,4,'🐟'],['แอปเปิล 1 ผล',95,0,25,0,'🍎']].map((x,i)=>({id:i+1,name:x[0],cal:x[1],protein:x[2],carbs:x[3],fat:x[4],emoji:x[5]}));
-const menu=[['home','⌂','หน้าหลัก'],['library','▦','คลังท่า'],['programs','▤','โปรแกรม'],['builder','⊕','สร้างโปรแกรม'],['equipment','◈','อุปกรณ์ของฉัน'],['schedule','▣','ตารางฝึก'],['nutrition','◉','โภชนาการ'],['member','◉','สมาชิก'],['settings','⚙','ตั้งค่า']];
+const menu=[['home','⌂','หน้าพร้อมฝึก'],['muscle','◒','แผนที่กล้ามเนื้อ'],['library','▦','คลังท่า'],['equipment','◈','ยิมที่บ้าน'],['sets','▤','ชุดของฉัน'],['smart','✦','Smart Builder'],['schedule','▣','ตารางฝึก'],['nutrition','◉','โภชนาการ'],['member','◎','สมาชิก'],['settings','⚙','ตั้งค่า']];
 const key='vigor-state-v1';
-const initial={plans:[],sessions:[],meals:[],equipment:[],goal:1900,voice:false,rest:20,profile:{displayName:'',fitnessGoal:'ฟิตทั่วไป',level:'เริ่มต้น',weeklyTarget:3}};
+const initial={plans:[],sessions:[],meals:[],equipment:[],goal:1900,voice:false,rest:20,profile:{displayName:'',fitnessGoal:'ฟิตทั่วไป',level:'เริ่มต้น',weeklyTarget:3},favorites:[],schedule:{},ready:{goal:'ทั้งหมด',equipment:'ทั้งหมด',minutes:0}};
 const host=document.querySelector('#app');
 const signedIn=host?.dataset.auth==='1';
 const signInUrl=host?.dataset.signin||'/signin-with-chatgpt?return_to=%2F';
@@ -115,3 +115,76 @@ if(signedIn){
     render();registerWebMcp();
   }).catch(()=>{host.innerHTML=`<div class="loading-screen">โหลดข้อมูลไม่สำเร็จ <button class="btn" onclick="location.reload()">ลองอีกครั้ง</button></div>`});
 }else{render();registerWebMcp()}
+
+// FastFit-inspired discovery, planning, and tracking surfaces.
+const additionalPrograms=[
+ {id:'quick7',name:'7 นาที กระชับทั่วตัว',goal:'ลดไขมัน',level:'เริ่มต้น',minutes:10,description:'วงจรน้ำหนักตัวสั้น ๆ สำหรับวันที่เวลาไม่มาก',exerciseIds:[5,1,7,8,3]},
+ {id:'upper',name:'ส่วนบนที่บ้าน',goal:'เพิ่มกล้ามเนื้อ',level:'ปานกลาง',minutes:30,description:'อก หลัง ไหล่ และแขน ด้วยดัมเบลหรือทดแทนด้วยน้ำหนักตัว',exerciseIds:[2,9,10,12,3]},
+ {id:'lower',name:'ขาและสะโพก',goal:'เพิ่มกล้ามเนื้อ',level:'ปานกลาง',minutes:30,description:'สควอต ลันจ์ และสะพานสะโพกเพื่อขาและก้นที่แข็งแรง',exerciseIds:[1,4,11,6,15]},
+ {id:'mobility',name:'ปลุกตัว 10 นาที',goal:'ฟื้นฟู',level:'เริ่มต้น',minutes:10,description:'คลายหลัง สะโพก และไหล่ก่อนเริ่มวัน',exerciseIds:[14,13,3,6]},
+ {id:'coreplus',name:'แกนกลางและคาร์ดิโอ',goal:'ความแข็งแรง',level:'ปานกลาง',minutes:22,description:'เพิ่มความอึดและความมั่นคงของแกนกลาง',exerciseIds:[3,8,7,15,5]},
+ {id:'flow',name:'โยคะผ่อนคลาย',goal:'ฟื้นฟู',level:'เริ่มต้น',minutes:18,description:'การเคลื่อนไหวช้า ๆ เพื่อยืดและฟื้นฟูร่างกาย',exerciseIds:[13,14,3,16,6]}
+];
+builtins.push(...additionalPrograms);
+const baseExerciseCard=exerciseCard;
+exerciseCard=(e)=>baseExerciseCard(e).replace('</article>',`<button class="favorite-btn" data-favorite="${e.id}" aria-label="บันทึก ${esc(e.name)}">${state.favorites?.includes(e.id)?'★ บันทึกแล้ว':'☆ บันทึก'}</button></article>`);
+
+function readyPlans(){
+  const ready=state.ready||initial.ready;
+  return allPlans().filter(p=>{
+    const goalMatch=ready.goal==='ทั้งหมด'||p.goal===ready.goal;
+    const timeMatch=!ready.minutes||p.minutes<=ready.minutes;
+    const hasEquipment=p.exerciseIds.every(id=>{const ex=exercises.find(x=>x.id===id);return ready.equipment==='ทั้งหมด'||ready.equipment==='ไม่ใช้อุปกรณ์'?ex.equipment==='ไม่ใช้อุปกรณ์':ex.equipment==='ไม่ใช้อุปกรณ์'||state.equipment.includes(ex.equipment)});
+    return goalMatch&&timeMatch&&hasEquipment;
+  });
+}
+home=function(){
+  const ready=state.ready||initial.ready, plans=readyPlans().slice(0,6);
+  const pick=(kind,items,value)=>`<div class="ready-group"><strong>${kind}</strong><div class="chips">${items.map(item=>`<button class="chip ${value===item?'active':''}" data-ready-${kind==='เป้าหมาย'?'goal':kind==='อุปกรณ์'?'equipment':'time'}="${esc(String(item))}">${kind==='เวลา'?(item?`≤ ${item} นาที`:'ทุกช่วงเวลา'):item}</button>`).join('')}</div></div>`;
+  return `${header('READY TO TRAIN','วันนี้อยากฝึกอะไร?','เลือกเป้าหมาย อุปกรณ์ และเวลาที่มี แล้วเริ่มโปรแกรมที่เหมาะกับคุณได้ทันที')}<section class="panel ready-panel">${pick('เป้าหมาย',['ทั้งหมด','ลดไขมัน','เพิ่มกล้ามเนื้อ','ความแข็งแรง','ฟื้นฟู'],ready.goal)}${pick('อุปกรณ์',['ทั้งหมด','ไม่ใช้อุปกรณ์','อุปกรณ์ของฉัน'],ready.equipment)}${pick('เวลา',[0,20,40,60],Number(ready.minutes)||0)}</section><section class="section"><div class="section-head"><div><h2>โปรแกรมพร้อมเริ่ม</h2><p>${plans.length?'กดดูรายละเอียดหรือเริ่มฝึกได้ทันที':'ยังไม่มีโปรแกรมที่ตรงกับตัวเลือก ลองปรับตัวกรองหรือให้ Smart Builder ช่วย'}</p></div><button class="btn small secondary" data-go="smart">ให้ Smart Builder จัดให้</button></div><div class="grid program-grid">${plans.length?plans.map(programCard).join(''):'<div class="empty">ไม่พบโปรแกรมที่ตรงกับตัวเลือก</div>'}</div></section><section class="section quick-links"><button class="panel link-panel" data-go="muscle"><span>◒</span><div><strong>เลือกจากกล้ามเนื้อ</strong><small>แตะส่วนที่อยากฝึกเพื่อดูท่า</small></div></button><button class="panel link-panel" data-go="equipment"><span>◈</span><div><strong>ยิมที่บ้าน</strong><small>ตั้งค่าอุปกรณ์ของคุณ</small></div></button><button class="panel link-panel" data-go="sets"><span>▤</span><div><strong>ชุดของฉัน</strong><small>บันทึกและเริ่มโปรแกรมส่วนตัว</small></div></button></section>`;
+};
+function muscle(){
+  const groups=[['อกและแขน','💪','วิดพื้นและท่าดัน'],['หลัง','↩','ดึงและโรว์'],['ไหล่และแขน','◎','ไหล่และแขน'],['แกนกลาง','◉','หน้าท้องและลำตัว'],['ขาและสะโพก','◒','ขา ก้น และการทรงตัว'],['คาร์ดิโอ','⚡','เพิ่มชีพจร'],['ยืดเหยียด','↔','คลายความตึง']];
+  return `${header('MUSCLE MAP','เลือกกล้ามเนื้อที่อยากฝึก','แตะกลุ่มกล้ามเนื้อเพื่อเปิดคลังท่าที่เกี่ยวข้อง')}<div class="muscle-map panel"><div class="body-silhouette" aria-hidden="true"><span class="body-head"></span><span class="body-chest"></span><span class="body-core"></span><span class="body-leg left"></span><span class="body-leg right"></span></div><div class="muscle-grid">${groups.map(([name,icon,copy])=>`<button class="muscle-card" data-muscle="${esc(name)}"><span>${icon}</span><strong>${name}</strong><small>${copy}</small></button>`).join('')}</div></div><p class="hint">แผนที่นี้เป็นตัวเลือกกล้ามเนื้อสำหรับค้นหาท่า ไม่ใช่คำแนะนำทางการแพทย์</p>`;
+}
+function sets(){
+  const plans=[...state.plans];
+  return `${header('MY SETS','ชุดออกกำลังกายของฉัน','สร้าง บันทึก และนำชุดของคุณกลับมาใช้ได้ทุกครั้ง')}<div class="toolbar"><p class="intro" style="margin:0">${plans.length?`คุณมี ${plans.length} ชุดที่บันทึกไว้`:'ยังไม่มีชุดส่วนตัว เริ่มจาก Smart Builder หรือสร้างเอง'}</p><div><button class="btn secondary" data-go="smart">จัดให้ฉัน</button> <button class="btn" data-go="builder">＋ สร้างชุดเอง</button></div></div><div class="grid program-grid">${plans.length?plans.map(programCard).join(''):'<div class="empty">ยังไม่มีชุดส่วนตัว</div>'}</div><section class="section"><div class="section-head"><div><h2>รายการโปรด</h2><p>ท่าที่คุณบันทึกไว้สำหรับสร้างชุดครั้งต่อไป</p></div></div><div class="grid exercise-grid">${(state.favorites||[]).map(id=>exercises.find(e=>e.id===id)).filter(Boolean).map(exerciseCard).join('')||'<div class="empty">ยังไม่มีท่าที่บันทึกไว้</div>'}</div></section>`;
+}
+let smartChoice={goal:'ลดไขมัน',focus:'ทั้งตัว',equipment:'ไม่ใช้อุปกรณ์',minutes:20,level:'เริ่มต้น'};
+function smart(){
+  const choice=(title,key,items)=>`<div class="smart-group"><strong>${title}</strong><div class="chips">${items.map(v=>`<button class="chip ${String(smartChoice[key])===String(v)?'active':''}" data-smart="${key}" data-value="${esc(String(v))}">${key==='minutes'?`${v} นาที`:v}</button>`).join('')}</div></div>`;
+  return `${header('SMART BUILDER','ให้ VIGOR จัดโปรแกรมให้','เลือกเป้าหมาย กล้ามเนื้อ อุปกรณ์ เวลา และระดับ แล้วรับชุดฝึกพร้อมเริ่ม')}<section class="panel smart-panel">${choice('เป้าหมาย','goal',['ลดไขมัน','เพิ่มกล้ามเนื้อ','ความแข็งแรง','ฟื้นฟู'])}${choice('โฟกัส','focus',['ทั้งตัว','ส่วนบน','ส่วนล่าง','แกนกลาง'])}${choice('อุปกรณ์','equipment',['ไม่ใช้อุปกรณ์','อุปกรณ์ของฉัน','ทั้งหมด'])}${choice('เวลาที่มี','minutes',[15,30,45,60])}${choice('ระดับ','level',['เริ่มต้น','ปานกลาง','ขั้นสูง'])}<button class="btn" id="build-smart">✦ สร้างโปรแกรมของฉัน</button></section><section class="panel"><h3>หลักการจัดชุด</h3><div class="list"><div class="list-item"><span>1</span><div><strong>วอร์มอัป</strong><small>เริ่มด้วยการเคลื่อนไหวเบา ๆ</small></div></div><div class="list-item"><span>2</span><div><strong>ช่วงหลัก</strong><small>เลือกท่าตามเป้าหมายและอุปกรณ์</small></div></div><div class="list-item"><span>3</span><div><strong>คูลดาวน์</strong><small>จบด้วยการยืดเหยียดและหายใจ</small></div></div></div></section>`;
+}
+const baseSchedule=schedule;
+schedule=function(){
+  const now=new Date(), days=Array.from({length:7},(_,i)=>{const d=new Date(now);d.setDate(now.getDate()+i);return d});
+  const selected=state.schedule||{};
+  return `${header('WEEKLY PLAN','ตารางฝึกของฉัน','เลือกชุดหนึ่ง แล้ววางลงในวันที่ต้องการฝึก')}<div class="panel"><div class="field"><label>เลือกชุดที่จะวางในตาราง</label><select id="schedule-plan"><option value="">-- เลือกชุด --</option>${allPlans().map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${p.minutes} นาที</option>`).join('')}</select></div><div class="week-grid">${days.map(d=>{const date=d.toLocaleDateString('en-CA'),plan=allPlans().find(p=>String(p.id)===String(selected[date]));return `<button class="week-day ${plan?'planned':''}" data-schedule-day="${date}"><small>${new Intl.DateTimeFormat('th-TH',{weekday:'short'}).format(d)}</small><strong>${d.getDate()}</strong><span>${plan?esc(plan.name):'วางแผนฝึก'}</span></button>`}).join('')}</div><p class="hint">เลือกชุดก่อน จากนั้นแตะวันที่เพื่อบันทึก หรือตั้งวันเดิมอีกครั้งเพื่อล้าง</p></div>${baseSchedule()}`;
+};
+const baseRender=render;
+render=function(){
+  const pages={home,library,programs,builder,equipment,schedule,nutrition,member,settings,workout:workoutPage,muscle,sets,smart};
+  const content=(pages[page]||home)();
+  $('#app').innerHTML=layout(content);
+  if(page==='library'&&window.equipmentFilter){document.querySelectorAll('.exercise').forEach(el=>{let e=exercises.find(x=>x.id===Number(el.dataset.exercise));if(window.equipmentFilter!=='ทั้งหมด'&&e.equipment!==window.equipmentFilter)el.style.display='none'})}
+};
+document.addEventListener('click',event=>{
+  const target=event.target.closest('[data-ready-goal],[data-ready-equipment],[data-ready-time],[data-muscle],[data-favorite],[data-smart],[data-schedule-day],#build-smart');
+  if(!target)return;
+  if(target.dataset.readyGoal!==undefined){state.ready={...(state.ready||initial.ready),goal:target.dataset.readyGoal};save();render();}
+  else if(target.dataset.readyEquipment!==undefined){const value=target.dataset.readyEquipment;state.ready={...(state.ready||initial.ready),equipment:value==='อุปกรณ์ของฉัน'?'อุปกรณ์ของฉัน':value};save();render();}
+  else if(target.dataset.readyTime!==undefined){state.ready={...(state.ready||initial.ready),minutes:Number(target.dataset.readyTime)};save();render();}
+  else if(target.dataset.muscle){filter=target.dataset.muscle;go('library');}
+  else if(target.dataset.favorite){const id=Number(target.dataset.favorite),favorites=state.favorites||[];state.favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];save();render();notify(favorites.includes(id)?'ลบออกจากรายการโปรดแล้ว':'บันทึกท่าไว้แล้ว');}
+  else if(target.dataset.smart){smartChoice={...smartChoice,[target.dataset.smart]:target.dataset.smart==='minutes'?Number(target.dataset.value):target.dataset.value};render();}
+  else if(target.id==='build-smart'){
+    const focus={ 'ทั้งตัว':()=>true,'ส่วนบน':e=>['อกและแขน','หลัง','ไหล่และแขน','แขน'].includes(e.muscle),'ส่วนล่าง':e=>e.muscle==='ขาและสะโพก','แกนกลาง':e=>e.muscle==='แกนกลาง'}[smartChoice.focus]||(()=>true);
+    const allowed=exercises.filter(e=>focus(e)&&(smartChoice.equipment==='ทั้งหมด'||smartChoice.equipment==='ไม่ใช้อุปกรณ์'?e.equipment==='ไม่ใช้อุปกรณ์':e.equipment==='ไม่ใช้อุปกรณ์'||state.equipment.includes(e.equipment)));
+    const count=Math.max(4,Math.min(allowed.length,Math.round(Number(smartChoice.minutes)/5)));
+    const ids=allowed.slice(0,count).map(e=>e.id); if(!ids.length)return notify('ตั้งค่าอุปกรณ์ก่อน หรือเลือกไม่ใช้อุปกรณ์');
+    const plan={id:'smart-'+Date.now(),name:`Smart ${smartChoice.goal} · ${smartChoice.focus}`,goal:smartChoice.goal,level:smartChoice.level,minutes:Number(smartChoice.minutes),description:'สร้างโดย Smart Builder พร้อมช่วงวอร์มอัปและคูลดาวน์',exerciseIds:ids};
+    state.plans.push(plan);save();modal={type:'plan',id:plan.id};page='sets';location.hash='sets';render();notify('สร้างและบันทึกชุดของคุณแล้ว');
+  }else if(target.dataset.scheduleDay){const select=$('#schedule-plan'),id=select?.value,date=target.dataset.scheduleDay;if(!id)return notify('เลือกชุดก่อน');state.schedule={...(state.schedule||{})};state.schedule[date]=String(state.schedule[date])===String(id)?undefined:id;save();render();notify(state.schedule[date]?'วางแผนฝึกแล้ว':'ลบจากตารางแล้ว');}
+});
+render();
